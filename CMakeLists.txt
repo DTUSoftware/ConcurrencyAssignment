@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.21)
+project(ConcurrencyAssignment C)
+
+set(CMAKE_C_STANDARD 11)
+
+add_executable(bank
+        main.c main.h)
