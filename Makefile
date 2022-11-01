@@ -1,20 +1,21 @@
 CC = gcc
 CCOPTS = -c -g -Wall
-LINKOPTS = -g -lrt 
+LINKOPTS = -g
 
 EXEC=bank
-OBJECTS=main.c main.h
+OBJECTS=main.o
 
 all: $(EXEC)
 
 $(EXEC): $(OBJECTS)
-	$(CC) $(LINKOPTS) -c -O2 $@ $^
+	$(CC) $(LINKOPTS) -o $@ $^
 
 %.o:%.c
-	$(CC) $(CCOPTS) -c -O2 $@ $^
+	$(CC) $(CCOPTS) -O2 $@ $^
 
 clean:
 	- $(RM) $(EXEC)
+	- $(RM) $(EXEC).exe
 	- $(RM) $(OBJECTS)
 	- $(RM) *~
 	- $(RM) core.*
