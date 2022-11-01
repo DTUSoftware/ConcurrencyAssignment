@@ -8,5 +8,6 @@
 #include <limits.h>
 
 int main() {
+    printf("Hello World!\n");
     return 0;
 }
