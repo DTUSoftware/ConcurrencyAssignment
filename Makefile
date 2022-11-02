@@ -1,6 +1,6 @@
 CC = gcc
-CCOPTS = -c -g -Wall
-LINKOPTS = -g
+CCOPTS = -c -g -pthread -Wall
+LINKOPTS = -g -pthread
 
 EXEC=bank
 OBJECTS=main.o
