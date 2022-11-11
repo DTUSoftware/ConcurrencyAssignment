@@ -30,5 +30,14 @@ run: $(TARGET)
 test: $(TARGET)
 	./$(TARGET) -test all
 
+withdrawalTest: $(TARGET)
+	./$(TARGET) -test withdrawal
+
+depositTest: $(TARGET)
+	./$(TARGET) -test deposit
+
+transferTest: $(TARGET)
+	./$(TARGET) -test transfer
+
 pretty: 
 	indent *.c *.h -kr
