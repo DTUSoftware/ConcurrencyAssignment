@@ -41,7 +41,6 @@ int convertStrToInt(char *string, int *integer);
 
 extern bool DEBUG;
 
-
 extern pthread_mutex_t account_mutex;
 
 enum STATUS {

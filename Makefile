@@ -17,15 +17,18 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(CCOPTS) -o $@ $^
 
 clean:
-	- $(RM) $(EXEC)
-	- $(RM) $(EXEC).exe
+	- $(RM) $(TARGET)
+	- $(RM) $(TARGET).exe
 	- $(RM) $(OBJECTS)
 	- $(RM) *~
 	- $(RM) *.h.gch
 	- $(RM) core.*
 
-run: $(EXEC)
-	$(EXEC)
+run: $(TARGET)
+	./$(TARGET)
+
+test: $(TARGET)
+	./$(TARGET) -test all
 
 pretty: 
 	indent *.c *.h -kr

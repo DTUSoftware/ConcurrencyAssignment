@@ -14,13 +14,12 @@ bool DEBUG = true;
 pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[]) {
-    if(argc < 2) {
+    if (argc < 2) {
         return bankMenu();
-    }
-    else if (!strcmp(argv[1], "-test"))
-        return testMain(argc-1, argv+1);
+    } else if (!strcmp(argv[1], "-test"))
+        return testMain(argc - 1, argv + 1);
     else {
-        printf("Usage: bank [-test <test/menu>]\n");
+        printf("Usage: bank [-test <menu | test [all | withdrawal | deposit | transfer]>]\n");
         return 1;
     }
 }
@@ -79,38 +78,36 @@ int bankMenu() {
 }
 
 int createAccountDB() {
-    FILE * file;
-    file = fopen( ACCOUNT_DB , "w");
+    FILE *file;
+    file = fopen(ACCOUNT_DB, "w");
 
     if (file) {
         fputs("0", file); // initialize account balance to 0
         fclose(file);
         return 0;
-    }
-    else {
+    } else {
         return 1;
     }
 }
 
 // This performs IO and has to be called using Mutex from a function
 int setAccountBalance(int balance) {
-    FILE * file;
-    file = fopen( ACCOUNT_DB , "w");
+    FILE *file;
+    file = fopen(ACCOUNT_DB, "w");
     if (file) {
         fprintf(file, "%d", balance); // initialize account balance to 0
         fclose(file);
 
         return 0;
-    }
-    else {
+    } else {
         return 1;
     }
 }
 
 // This performs IO and has to be called using Mutex from a function
 int getAccountBalance(int *balance) {
-    FILE * file;
-    file = fopen( ACCOUNT_DB , "r");
+    FILE *file;
+    file = fopen(ACCOUNT_DB, "r");
     if (file) {
         char **bufferptr = malloc(sizeof(char *));
         if (bufferptr == NULL) {
@@ -146,8 +143,7 @@ int getAccountBalance(int *balance) {
         }
 
         return 0;
-    }
-    else {
+    } else {
         if (DEBUG) {
             printf("Couldn't open file!\n");
         }
@@ -229,7 +225,7 @@ void *withdraw(void *arg) {
         return NULL;
     }
 
-    if (setAccountBalance(*balance-*amount) != 0) {
+    if (setAccountBalance(*balance - *amount) != 0) {
         printf("Couldn't set balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
