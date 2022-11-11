@@ -1,23 +1,27 @@
 CC = gcc
-CCOPTS = -c -g -pthread -Wall
-LINKOPTS = -g -pthread
+CCOPTS = -c -O2 -g -Wall
+LINKOPTS = -O2 -g
 
-EXEC=bank
-OBJECTS=main.o
+TARGET = bank
+SRCS = main.c test.c
+OBJECTS = $(SRCS:.c=.o)
 
-all: $(EXEC)
+LIBS = -pthread
 
-$(EXEC): $(OBJECTS)
-	$(CC) $(LINKOPTS) -o $@ $^
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(LINKOPTS) $(LIBS) -o $@ $^
 
 %.o:%.c
-	$(CC) $(CCOPTS) -O2 $@ $^
+	$(CC) $(CCOPTS) -o $@ $^
 
 clean:
 	- $(RM) $(EXEC)
 	- $(RM) $(EXEC).exe
 	- $(RM) $(OBJECTS)
 	- $(RM) *~
+	- $(RM) *.h.gch
 	- $(RM) core.*
 
 run: $(EXEC)

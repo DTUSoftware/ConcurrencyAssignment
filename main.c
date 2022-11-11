@@ -3,13 +3,29 @@
 #include <stdio.h>
 #include <assert.h>
 #include "main.h"
+#include "test.h"
 #include <stdbool.h>
 #include <limits.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <math.h>
 
+bool DEBUG = true;
+pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 int main(int argc, char *argv[]) {
+    if(argc < 2) {
+        return bankMenu();
+    }
+    else if (!strcmp(argv[1], "-test"))
+        return testMain(argc-1, argv+1);
+    else {
+        printf("Usage: bank [-test <test/menu>]\n");
+        return 1;
+    }
+}
+
+int bankMenu() {
     enum STATUS status = OK;
     while (status == OK) {
         clearScreen();

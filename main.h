@@ -4,11 +4,14 @@
 #include <stddef.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #define BUFFER_SIZE 20
 #define ACCOUNT_DB "./account_db"
 
-int main();
+int main(int argc, char *argv[]);
+
+int bankMenu();
 
 int chooseOption(int *optionChosen);
 
@@ -36,10 +39,10 @@ int getAccountBalance(int *balance);
 
 int convertStrToInt(char *string, int *integer);
 
-bool DEBUG = true;
+extern bool DEBUG;
 
 
-pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
+extern pthread_mutex_t account_mutex;
 
 enum STATUS {
     OK = 1,
