@@ -23,14 +23,6 @@ int accountMenu();
 
 int transferMenu();
 
-int clearScreen();
-
-int getCustomValue(int *value);
-
-int readinput(char **bufferptr, int newlinestop, FILE *stream);
-
-int menuDoneWait();
-
 void *withdraw(void *arg);
 
 void *deposit(void *arg);
@@ -40,8 +32,6 @@ int createAccountDB();
 int setAccountBalance(int balance);
 
 int getAccountBalance(int *balance);
-
-int convertStrToInt(char *string, int *integer);
 
 extern bool DEBUG;
 
