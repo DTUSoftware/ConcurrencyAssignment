@@ -6,4 +6,5 @@ SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
 add_executable(bank
         main.c main.h
+        utils.c utils.h
         test.c test.h)

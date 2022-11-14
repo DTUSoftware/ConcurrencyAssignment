@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <math.h>
+#include "utils.h"
 
 bool DEBUG = true;
 pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -16,11 +17,11 @@ pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         return bankMenu();
-    } else if (!strcmp(argv[1], "-test"))
+    } else if (strcmp(argv[1], "-test") == 0)
         return testMain(argc - 1, argv + 1);
     else {
         printf("Usage: bank [-test <menu | test [all | withdrawal | deposit | transfer]>]\n");
-        return 1;
+        return ERROR;
     }
 }
 
@@ -30,12 +31,9 @@ int bankMenu() {
         clearScreen();
         printf("=====[ DTU Student Bank ATM ]=====\nWelcome to YOUR bank for all your banking needs (blockchain support coming Fiscal Year 2069) :)\n\n");
         int *option = malloc(sizeof(int));
-        if (option == NULL) {
-            status = ERROR;
-            continue;
-        }
+        assert(option != NULL);
 
-        if (chooseOption(option) != 0) {
+        if (chooseOption(option) != OK) {
             status = ERROR;
             free(option);
             continue;
@@ -51,19 +49,19 @@ int bankMenu() {
         // Switch on any other option
         switch (*option) {
             case 1: {
-                if (withdrawMenu() != 0) status = ERROR;
+                if (withdrawMenu() != OK) status = ERROR;
                 break;
             }
             case 2: {
-                if (depositMenu() != 0) status = ERROR;
+                if (depositMenu() != OK) status = ERROR;
                 break;
             }
             case 3: {
-                if (accountMenu() != 0) status = ERROR;
+                if (accountMenu() != OK) status = ERROR;
                 break;
             }
             case 4: {
-                if (transferMenu() != 0) status = ERROR;
+                if (transferMenu() != OK) status = ERROR;
                 break;
             }
             default: {
@@ -78,16 +76,7 @@ int bankMenu() {
 }
 
 int createAccountDB() {
-    FILE *file;
-    file = fopen(ACCOUNT_DB, "w");
-
-    if (file) {
-        fputs("0", file); // initialize account balance to 0
-        fclose(file);
-        return 0;
-    } else {
-        return 1;
-    }
+    return setAccountBalance(0); // initialize account balance to 0
 }
 
 // This performs IO and has to be called using Mutex from a function
@@ -95,12 +84,12 @@ int setAccountBalance(int balance) {
     FILE *file;
     file = fopen(ACCOUNT_DB, "w");
     if (file) {
-        fprintf(file, "%d", balance); // initialize account balance to 0
+        fprintf(file, "%d", balance);
         fclose(file);
 
-        return 0;
+        return OK;
     } else {
-        return 1;
+        return ERROR;
     }
 }
 
@@ -110,19 +99,13 @@ int getAccountBalance(int *balance) {
     file = fopen(ACCOUNT_DB, "r");
     if (file) {
         char **bufferptr = malloc(sizeof(char *));
-        if (bufferptr == NULL) {
-            perror("out of memory");
-            return 1;
-        }
+        assert(bufferptr != NULL);
         char *buffer = calloc(BUFFER_SIZE, sizeof(char));
-        if (buffer == NULL) {
-            perror("out of memory");
-            return 1;
-        }
+        assert(buffer != NULL);
         bufferptr[0] = buffer;
 
         // Read input from console
-        if (!readinput(bufferptr, 1, file)) {
+        if (readinput(bufferptr, 1, file) != OK) {
             if (DEBUG) {
                 printf("Couldn't read input!\n");
             }
@@ -134,15 +117,15 @@ int getAccountBalance(int *balance) {
         free(bufferptr);
         fclose(file);
 
-        if (convertStrToInt(buffer, balance) != 0) {
+        if (convertStrToInt(buffer, balance) != OK) {
             if (DEBUG) {
                 printf("Couldn't convert str to int!\n");
             }
             free(buffer);
-            return 1;
+            return ERROR;
         }
 
-        return 0;
+        return OK;
     } else {
         if (DEBUG) {
             printf("Couldn't open file!\n");
@@ -169,29 +152,23 @@ int readinput(char **bufferptr, int newlinestop, FILE *stream) {
         if (pos == buffer_size) {
             buffer_size = buffer_size + BUFFER_SIZE;
             buffer = realloc(buffer, buffer_size * sizeof(char));
-            if (buffer == NULL) {
-                perror("memory allocation");
-                exit(EXIT_FAILURE);
-            }
+            assert(buffer != NULL);
         }
     }
     buffer_size = ++pos;
     buffer = realloc(buffer, buffer_size + 1 * sizeof(char));
-    if (buffer == NULL) {
-        perror("memory allocation");
-        exit(EXIT_FAILURE);
-    }
+    assert(buffer != NULL);
     buffer[pos] = '\0';
 
 //            printf("DEBUG: %s\n", buffer);
     bufferptr[0] = buffer;
-    return 1;
+    return OK;
 }
 
 int clearScreen() {
     // https://www.geeksforgeeks.org/clear-console-c-language/
     printf("\e[1;1H\e[2J");
-    return 0;
+    return OK;
 }
 
 int menuDoneWait() {
@@ -208,43 +185,53 @@ int menuDoneWait() {
         sleep(3);
     }
 
-    return 0;
+    return OK;
 }
 
 void *withdraw(void *arg) {
+    int *ret = (int *) malloc(sizeof(int));
+    assert(ret != NULL);
+
     int *amount = (int *) arg;
-    printf("> Waiting to transfer...\n");
+    if (*amount <= 0) {
+        printf("Withdrawal amount cannot be below 0!\n");
+        *ret = ERROR;
+        pthread_exit(ret);
+    }
+
+    printf("> Waiting to withdraw...\n");
     pthread_mutex_lock(&account_mutex);
-    printf("> Transferring %d$...\n", *amount);
+    printf("> Withdrawing %d$...\n", *amount);
 
     int *balance = malloc(sizeof(int));
-    if (getAccountBalance(balance) != 0) {
+    assert(balance != NULL);
+
+    if (getAccountBalance(balance) != OK) {
         printf("Couldn't get account balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
-        return NULL;
+        *ret = ERROR;
+        pthread_exit(ret);
     }
 
-    if (setAccountBalance(*balance - *amount) != 0) {
+    if (setAccountBalance(*balance - *amount) != OK) {
         printf("Couldn't set balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
-        return NULL;
+        *ret = ERROR;
+        pthread_exit(ret);
     }
 
     sleep(3);
-    // TODO: Actually remove the money lol
     pthread_mutex_unlock(&account_mutex);
     printf("> Done transferring!\n");
-    return NULL;
+    *ret = OK;
+    pthread_exit(ret);
 }
 
 int withdrawMenu() {
     int *withdrawal_amount = malloc(sizeof(*withdrawal_amount));
-    if (withdrawal_amount == NULL) {
-        printf("Malloc failed\n");
-        return 1;
-    }
+    assert(withdrawal_amount != NULL);
 
     clearScreen();
     printf("=====[ Withdrawal Menu ]=====\n");
@@ -278,18 +265,27 @@ int withdrawMenu() {
             break;
         }
         case '5': {
-            if (getCustomValue(withdrawal_amount) != 0) {
-                free(withdrawal_amount);
-                return 1;
+            while (true) {
+                if (getCustomValue(withdrawal_amount) != OK) {
+                    free(withdrawal_amount);
+                    return ERROR;
+                }
+
+                if (*withdrawal_amount > 0) {
+                    break;
+                }
+
+                printf("Please enter an amount above 0 \n\n");
             }
+
             break;
         }
         case '6': {
-            return 0;
+            return OK;
         }
         default: {
             free(withdrawal_amount);
-            return 1;
+            return ERROR;
         }
     }
 
@@ -298,27 +294,143 @@ int withdrawMenu() {
     if (pthread_create(&withdrawal_thread, NULL, withdraw, (void *) withdrawal_amount)) {
         printf("error creating thread.");
         free(withdrawal_amount);
-        return 1;
+        return ERROR;
     }
     if (DEBUG) printf("Waiting for thread to join...\n");
-    if (pthread_join(withdrawal_thread, NULL)) {
+    void *pthread_status;
+    if (pthread_join(withdrawal_thread, &pthread_status)) {
         printf("error joining thread.");
         free(withdrawal_amount);
-        return 1;
+        return ERROR;
     }
     free(withdrawal_amount);
+    if (*((int *) pthread_status) != OK) {
+        free(pthread_status);
+        return ERROR;
+    }
+    free(pthread_status);
 
     menuDoneWait();
-    return 0;
+    return OK;
+}
+
+void *deposit(void *arg) {
+    int *amount = (int *) arg;
+
+    if (*amount <= 0) {
+        printf("Deposit amount should be above 0.\n");
+        pthread_exit((void *) ERROR);
+    }
+
+    printf("> Waiting to transfer...\n");
+    pthread_mutex_lock(&account_mutex);
+    printf("> Transferring %d$...\n", *amount);
+
+    int *balance = malloc(sizeof(int));
+    assert(balance != NULL);
+
+    if (getAccountBalance(balance) != OK) {
+        printf("Couldn't get account balance!\n");
+        free(balance);
+        pthread_mutex_unlock(&account_mutex);
+        pthread_exit((void *) ERROR);
+    }
+
+    if (setAccountBalance(*balance + *amount) != OK) {
+        printf("Couldn't set balance!\n");
+        free(balance);
+        pthread_mutex_unlock(&account_mutex);
+        pthread_exit((void *) ERROR);
+    }
+
+    sleep(3);
+    pthread_mutex_unlock(&account_mutex);
+    printf("> Done transferring!\n");
+    pthread_exit((void *) OK);
 }
 
 int depositMenu() {
+    int *deposit_amount = malloc(sizeof(*deposit_amount));
+    assert(deposit_amount != NULL);
+
     clearScreen();
     printf("=====[ Deposit Menu ]=====\n\n");
     printf("Choose Deposit Amount:\n\t[0] 50kr,-\t[1] 100kr,-\n\n\t[2] 200kr,-\t[3] 500kr,-\n\n\t[4] 1000kr,-\t[5] Custom amount\n\n\t[6] Return\n\n");
 
+    printf("> ");
+    fflush(stdout);
 
-    return 0;
+    int readChar = getchar();  // Read option from input
+    while (getchar() != '\n'); // Flush any excess input out
+
+    switch (readChar) {
+        case '0': {
+            *deposit_amount = 50;
+            break;
+        }
+        case '1': {
+            *deposit_amount = 100;
+            break;
+        }
+        case '2': {
+            *deposit_amount = 200;
+            break;
+        }
+        case '3': {
+            *deposit_amount = 500;
+            break;
+        }
+        case '4': {
+            *deposit_amount = 1000;
+            break;
+        }
+        case '5': {
+            while (true) {
+                if (getCustomValue(deposit_amount) != OK) {
+                    free(deposit_amount);
+                    return ERROR;
+                }
+
+                if (*deposit_amount > 0) {
+                    break;
+                }
+
+                printf("You can only deposit an amount above 0.\n");
+            }
+
+            break;
+        }
+        case '6': {
+            return OK;
+        }
+        default: {
+            free(deposit_amount);
+            return ERROR;
+        }
+    }
+    pthread_t deposit_thread;
+
+    if (pthread_create(&deposit_thread, NULL, deposit, (void *) deposit_amount)) {
+        printf("error creating thread.");
+        free(deposit_amount);
+        return ERROR;
+    }
+    if (DEBUG) printf("Waiting for thread to join...\n");
+
+    void *pthread_status = NULL;
+    if (pthread_join(deposit_thread, &pthread_status)) {
+        printf("error joining thread.");
+        free(deposit_amount);
+        return ERROR;
+    }
+    free(deposit_amount);
+    if (*((int *) pthread_status) != OK) {
+        return ERROR;
+    }
+
+    menuDoneWait();
+
+    return OK;
 }
 
 int accountMenu() {
@@ -328,11 +440,12 @@ int accountMenu() {
     // TODO: put me in a pthread
 
     int *balance = malloc(sizeof(int));
+    assert(balance != NULL);
 
-    if (getAccountBalance(balance) != 0) {
+    if (getAccountBalance(balance) != OK) {
         printf("Couldn't get account balance!\n");
         free(balance);
-        return 1;
+        return ERROR;
     }
 
     printf("Your current balance is %d$!\n", *balance);
@@ -341,30 +454,113 @@ int accountMenu() {
 
     // TODO: wait for input instead
     sleep(3);
-    return 0;
+    return OK;
 }
 
 int transferMenu() {
     clearScreen();
+    int *transfer_amount = malloc(sizeof(*transfer_amount));
+
     printf("=====[ Transfer Menu ]=====\n\n");
 
     printf("Choose Transfer Amount:\n\t[0] 50kr,-\t[1] 100kr,-\n\n\t[2] 200kr,-\t[3] 500kr,-\n\n\t[4] 1000kr,-\t[5] Custom amount\n\n[6] Return\n\n");
 
-    return 0;
+    printf("> ");
+    fflush(stdout);
+
+    int readChar = getchar();  // Read option from input
+    while (getchar() != '\n'); // Flush any excess input out
+
+    switch (readChar) {
+        case '0': {
+            *transfer_amount = 50;
+            break;
+        }
+        case '1': {
+            *transfer_amount = 100;
+            break;
+        }
+        case '2': {
+            *transfer_amount = 200;
+            break;
+        }
+        case '3': {
+            *transfer_amount = 500;
+            break;
+        }
+        case '4': {
+            *transfer_amount = 1000;
+            break;
+        }
+        case '5': {
+            while (true) {
+                if (getCustomValue(transfer_amount) != OK) {
+                    free(transfer_amount);
+                    return ERROR;
+                }
+
+                if (*transfer_amount > 0) {
+                    break;
+                }
+
+                printf("You can only transfer an amount above 0.\n");
+            }
+
+            break;
+        }
+        case '6': {
+            return OK;
+        }
+        default: {
+            free(transfer_amount);
+            return ERROR;
+        }
+    }
+
+    printf("Enter reciveing account nr\n\n> ");
+/*
+    int Reciver_account = 0;
+
+    getCustomValue(Reciver_account);
+*/
+    pthread_t transfer_thread;
+
+    if (pthread_create(&transfer_thread, NULL, withdraw, (void *) transfer_amount)) {
+        printf("error creating thread.");
+        free(transfer_amount);
+        return ERROR;
+    }
+    if (DEBUG) printf("Waiting for thread to join...\n");
+
+    void *pthread_status = NULL;
+    if (pthread_join(transfer_thread, &pthread_status)) {
+        printf("error joining thread.");
+        free(transfer_amount);
+        return ERROR;
+    }
+    free(transfer_amount);
+    if (*((int *) pthread_status) != OK) {
+        return ERROR;
+    }
+
+    menuDoneWait();
+
+
+    return OK;
 }
 
 int convertStrToInt(char *string, int *integer) {
     // thanks stackoverflow https://stackoverflow.com/a/3068420
     if (strlen(string) > (floor(log10(abs(INT_MAX))) + 1)) {
         printf("You exceeded the maximum value of an integer!\n");
-        return 1;
+        return ERROR;
     }
 
     // TODO: check for integers over - strtol
 
     // Convert buffered string to integer
     *integer = atoi(string);
-    return 0;
+    return OK;
 }
 
 int getCustomValue(int *value) {
@@ -374,19 +570,14 @@ int getCustomValue(int *value) {
     fflush(stdout);
 
     char **bufferptr = malloc(sizeof(char *));
-    if (bufferptr == NULL) {
-        perror("out of memory");
-        return 1;
-    }
+    assert(bufferptr != NULL);
+
     char *buffer = calloc(BUFFER_SIZE, sizeof(char));
-    if (buffer == NULL) {
-        perror("out of memory");
-        return 1;
-    }
+    assert(buffer != NULL);
     bufferptr[0] = buffer;
 
     // Read input from console
-    if (!readinput(bufferptr, 1, stdin)) {
+    if (readinput(bufferptr, 1, stdin) != OK) {
         // if we could not read, and not caused by memory error, try again
         free(buffer);
         return 1;
@@ -394,12 +585,12 @@ int getCustomValue(int *value) {
     buffer = *bufferptr;
     free(bufferptr);
 
-    if (convertStrToInt(buffer, value) != 0) {
+    if (convertStrToInt(buffer, value) != OK) {
         free(buffer);
-        return 1;
+        return ERROR;
     }
     free(buffer);
-    return 0;
+    return OK;
 }
 
 
@@ -439,9 +630,9 @@ int chooseOption(int *optionChosen) {
         }
         default: {
             *optionChosen = -1;
-            return 1;
+            return ERROR;
         }
     }
 
-    return 0;
+    return OK;
 }
