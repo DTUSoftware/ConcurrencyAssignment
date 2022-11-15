@@ -100,7 +100,7 @@ int changeBalance(int amount) {
         pthread_mutex_unlock(&account_mutex);
         return status;
     }
-    usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
+    usleep(randSleep * BASE_SLEEP_MICRO_SECONDS);
     if (DEBUG) {
         printf("[%lu] Done sleeping!\n", pthread_self());
     }
@@ -137,8 +137,7 @@ int changeBalance(int amount) {
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     if (!TESTING) {
         printf("> Done transferring!\n");
-    }
-    else {
+    } else {
         printf("> Released lock.\n");
     }
 

@@ -39,8 +39,7 @@ int menu(char *title, char *description, char *optionText, char **options, int c
 
     if (optionText != NULL) {
         printf("%s:\n", optionText);
-    }
-    else {
+    } else {
         printf("Choose Option:\n");
     }
 
@@ -49,7 +48,7 @@ int menu(char *title, char *description, char *optionText, char **options, int c
     while (option != NULL) {
         printf("\t[%d] %s", i, option);
 
-        if (((i+1) % columns) == 0) {
+        if (((i + 1) % columns) == 0) {
             printf("\n");
         }
 
@@ -160,7 +159,7 @@ int bankMenu() {
                 status = transferMenu();
                 break;
             }
-            // hidden test menu
+                // hidden test menu
             case 9: {
                 printf("ENTERING TEST MENU");
                 for (int i = 0; i < 5; i++) {
@@ -211,8 +210,11 @@ int actionMenu(int action_type) {
     int *option = malloc(sizeof(int));
     assert(option != NULL);
 
-    char *title = (action_type == WITHDRAWAL) ? "Withdrawal Menu" : ((action_type == DEPOSIT) ? "Deposit Menu" : "Transfer Menu");
-    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount:" : ((action_type == DEPOSIT) ? "Choose Deposit Amount:" : "Choose Transfer Amount:");
+    char *title = (action_type == WITHDRAWAL) ? "Withdrawal Menu" : ((action_type == DEPOSIT) ? "Deposit Menu"
+                                                                                              : "Transfer Menu");
+    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount:" : ((action_type == DEPOSIT)
+                                                                                  ? "Choose Deposit Amount:"
+                                                                                  : "Choose Transfer Amount:");
     char *options[8];
     options[0] = "50kr,-";
     options[1] = "100kr,-";

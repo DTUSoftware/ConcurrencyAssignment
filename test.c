@@ -163,12 +163,12 @@ int runTest(int test_type) {
                     return status;
                 }
                 // Multiply the random number by our current iteration
-                amounts[k] = j*randInt;
+                amounts[k] = j * randInt;
                 // Adjust our account balance
                 switch (test_type) {
                     case WITHDRAWAL:
                     case TRANSFER: {
-                        account_balance = account_balance-amounts[k];
+                        account_balance = account_balance - amounts[k];
                         if (pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) {
                             printf("error creating thread.");
                             return ERROR;
@@ -176,7 +176,7 @@ int runTest(int test_type) {
                         break;
                     }
                     case DEPOSIT: {
-                        account_balance = account_balance+amounts[k];
+                        account_balance = account_balance + amounts[k];
                         if (pthread_create(&threads[k], NULL, deposit, (void *) &amounts[k])) {
                             printf("error creating thread.");
                             return ERROR;
@@ -206,8 +206,7 @@ int runTest(int test_type) {
                         free(pthread_statuses[k]);
                         return ERROR;
                     }
-                }
-                else {
+                } else {
                     if (*((int *) pthread_statuses[k]) != OK) {
                         free(pthread_statuses[k]);
                         return ERROR;
