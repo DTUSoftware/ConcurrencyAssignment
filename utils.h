@@ -13,4 +13,6 @@ int menuDoneWait();
 
 int convertStrToInt(char *string, int *integer);
 
+int randNum(int lower, int upper, int *randNum);
+
 #endif //BANK_UTILS_H

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "test.h"
 #include "main.h"
+#include "utils.h"
 
 int testMain(int argc, char *argv[]) {
     int status = OK;
@@ -120,27 +121,74 @@ int allTests() {
 
 int withdrawalTest() {
     int status;
-    if ((status = prepareBeforeTest()) != OK) {
-        return status;
-    }
 
-    pthread_t withdrawal_thread;
-    void *pthread_status = NULL;
-    int withdrawal_amount = 0;
+    pthread_t withdrawal_threads[MAX_THREAD_AMOUNT];
+    void *pthread_statuses[MAX_THREAD_AMOUNT];
 
+    // Random tests, running two or more pthreads at once
+    for (int i = 2; i < MAX_THREAD_AMOUNT; i++) {
+        // Prepare before each test
+        if ((status = prepareBeforeTest()) != OK) {
+            return status;
+        }
 
-    if (pthread_create(&withdrawal_thread, NULL, withdraw, (void *) &withdrawal_amount)) {
-        printf("error creating thread.");
-        return ERROR;
-    }
-    if (pthread_join(withdrawal_thread, &pthread_status)) {
-        printf("error joining thread.");
-        return ERROR;
-    }
-    if (*((int *) pthread_status) != OK) {
-        return ERROR;
-    }
+        // Set totals
+        int account_balance = 0;
+        int randInt = 0;
 
+        // Run x amount of random tests
+        for (int j = 0; j < RANDOM_TESTS_PER_RUN; j++) {
+
+            // Withdraw a random amount for each thread
+            for (int k = 0; k < i; k++) {
+                // Get random number
+                if ((status = randNum(1, 1000, &randInt)) != OK) {
+                    return status;
+                }
+                // Multiply the random number by our current iteration
+                int withdrawal_amount = k*randInt;
+                // Subtract from our account balance
+                account_balance = account_balance-withdrawal_amount;
+                if (pthread_create(&withdrawal_threads[k], NULL, withdraw, (void *) &withdrawal_amount)) {
+                    printf("error creating thread.");
+                    return ERROR;
+                }
+            }
+
+            // Join all the threads
+            for (int k = 0; k < i; k++) {
+                if (pthread_join(withdrawal_threads[k], &pthread_statuses[k])) {
+                    printf("error joining thread.");
+                    return ERROR;
+                }
+                if (pthread_statuses[k] == NULL) {
+                    return ERROR;
+                }
+                if (*((int *) pthread_statuses[k]) != OK) {
+                    free(pthread_statuses[k]);
+                    return ERROR;
+                }
+                free(pthread_statuses[k]);
+            }
+
+            // Check account balance
+            int *balance = malloc(sizeof(int));
+            assert(balance != NULL);
+
+            if (getAccountBalance(balance) != OK) {
+                printf("Couldn't get account balance!\n");
+                free(balance);
+                return ERROR;
+            }
+
+            if (*balance != account_balance) {
+                printf("Account balance not correct! (Expected %d - Actual %d)", account_balance, *balance);
+                free(balance);
+                return ERROR;
+            }
+            free(balance);
+        }
+    }
 
     return status;
 }

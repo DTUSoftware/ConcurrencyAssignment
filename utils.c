@@ -87,3 +87,8 @@ int readinput(char **bufferptr, int newlinestop, FILE *stream) {
     bufferptr[0] = buffer;
     return OK;
 }
+
+int randNum(int lower, int upper, int *randNum) {
+    *randNum = (rand() % (upper - lower + 1)) + lower;
+    return OK;
+}

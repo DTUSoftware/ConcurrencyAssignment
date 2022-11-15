@@ -23,6 +23,7 @@ clean:
 	- $(RM) *~
 	- $(RM) *.h.gch
 	- $(RM) core.*
+	- $(RM) account_db
 
 run: $(TARGET)
 	./$(TARGET)
