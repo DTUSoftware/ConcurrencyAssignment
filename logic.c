@@ -5,11 +5,12 @@
 #include <assert.h>
 #include "main.h"
 #include "test.h"
-#include <stdbool.h>
 #include <unistd.h>
 #include <pthread.h>
 #include "utils.h"
 
+// Creates an account with a balance of 0
+// should be called using Mutex, since it performs IO
 int createAccountDB() {
     return setAccountBalance(0); // initialize account balance to 0
 }
@@ -78,66 +79,60 @@ int getAccountBalance(int *balance) {
     }
 }
 
-void *withdraw(void *arg) {
-    int *ret = (int *) malloc(sizeof(int));
-    assert(ret != NULL);
+int changeBalance(int amount) {
+    int status = OK;
 
-    int *amount = (int *) arg;
-    if (*amount <= 0) {
-        if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("Withdrawal amount cannot be below 0!\n");
-        *ret = ERROR;
-        pthread_exit(ret);
-    }
-
+    // (Wait for mutex to be unlocked) and lock it, so two processes/threads don't change stuff at the same time
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
-    printf("> Waiting to withdraw...\n");
+    printf("> Waiting to perform balance change...\n");
     pthread_mutex_lock(&account_mutex);
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
-    printf("> Done waiting to withdraw...\n");
+    printf("> Done waiting to perform balance change!\n");
 
+    // Sleep so other processes can get "queued"
     if (DEBUG) {
         printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
         fflush(stdout);
     }
     // Get random sleep
     int randSleep;
-    if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
+    if ((status = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
         pthread_mutex_unlock(&account_mutex);
-        pthread_exit(ret);
+        return status;
     }
     usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
     if (DEBUG) {
         printf("[%lu] Done sleeping!\n", pthread_self());
     }
 
+    // Perform the balance change
     if (!TESTING) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("> Withdrawing %d$...\n", *amount);
+        printf("> Changing balance by %d$...\n", amount);
     }
 
+    // First we get the current balance
     int *balance = malloc(sizeof(int));
     assert(balance != NULL);
 
-    if (getAccountBalance(balance) != OK) {
+    if ((status = getAccountBalance(balance)) != OK) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't get account balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
-        *ret = ERROR;
-        pthread_exit(ret);
+        return status;
     }
 
-    if (setAccountBalance(*balance - *amount) != OK) {
+    // And then we change the balance
+    if ((status = setAccountBalance(*balance + amount)) != OK) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't set balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
-        *ret = ERROR;
-        pthread_exit(ret);
+        return status;
     }
 
-//    sleep(3);
+    // Now that we're done, we unlock the mutex, so others can get to change stuff
     pthread_mutex_unlock(&account_mutex);
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     if (!TESTING) {
@@ -146,62 +141,46 @@ void *withdraw(void *arg) {
     else {
         printf("> Released lock.\n");
     }
-    *ret = OK;
-    pthread_exit(ret);
+
+    return status;
 }
 
-void *deposit(void *arg) {
+void *balanceCheck(void *balance_ptr) {
     int *ret = (int *) malloc(sizeof(int));
     assert(ret != NULL);
 
-    int *amount = (int *) arg;
+    int *balance = (int *) balance_ptr;
+    *ret = getAccountBalance(balance);
+    pthread_exit(ret);
+}
+
+void *withdraw(void *amount_ptr) {
+    int *ret = (int *) malloc(sizeof(int));
+    assert(ret != NULL);
+
+    int *amount = (int *) amount_ptr;
+    if (*amount <= 0) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
+        printf("Withdrawal amount cannot be below 0!\n");
+        *ret = ERROR;
+        pthread_exit(ret);
+    }
+
+    *ret = changeBalance(-*amount);
+    pthread_exit(ret);
+}
+
+void *deposit(void *amount_ptr) {
+    int *ret = (int *) malloc(sizeof(int));
+    assert(ret != NULL);
+
+    int *amount = (int *) amount_ptr;
     if (*amount <= 0) {
         printf("Deposit amount should be above 0.\n");
         *ret = ERROR;
         pthread_exit(ret);
     }
 
-    printf("> Waiting to transfer...\n");
-    pthread_mutex_lock(&account_mutex);
-    printf("> Transferring %d$...\n", *amount);
-
-    if (DEBUG) {
-        printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
-        fflush(stdout);
-    }
-    // Get random sleep
-    int randSleep;
-    if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
-        pthread_mutex_unlock(&account_mutex);
-        pthread_exit(ret);
-    }
-    usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
-    if (DEBUG) {
-        printf("[%lu] Done sleeping!\n", pthread_self());
-    }
-
-    int *balance = malloc(sizeof(int));
-    assert(balance != NULL);
-
-    if (getAccountBalance(balance) != OK) {
-        printf("Couldn't get account balance!\n");
-        free(balance);
-        pthread_mutex_unlock(&account_mutex);
-        *ret = ERROR;
-        pthread_exit(ret);
-    }
-
-    if (setAccountBalance(*balance + *amount) != OK) {
-        printf("Couldn't set balance!\n");
-        free(balance);
-        pthread_mutex_unlock(&account_mutex);
-        *ret = ERROR;
-        pthread_exit(ret);
-    }
-
-//    sleep(3);
-    pthread_mutex_unlock(&account_mutex);
-    printf("> Done transferring!\n");
-    *ret = OK;
+    *ret = changeBalance(*amount);
     pthread_exit(ret);
 }

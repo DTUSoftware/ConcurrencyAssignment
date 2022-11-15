@@ -13,9 +13,11 @@
 
 int main(int argc, char *argv[]);
 
+int menu(char *title, char *description, char *optionText, char **options, int columns, int *chosenOption);
+
 int bankMenu();
 
-int chooseOption(int *optionChosen);
+int actionMenu(int action_type);
 
 int withdrawMenu();
 
@@ -33,6 +35,12 @@ enum STATUS {
     OK = 0,
     DEAD = -1,
     ERROR = 1
+};
+
+enum ACTION_TYPE {
+    WITHDRAWAL,
+    DEPOSIT,
+    TRANSFER
 };
 
 #endif //BANK_MAIN_H
