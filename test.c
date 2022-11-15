@@ -5,6 +5,7 @@
 #include "test.h"
 #include "main.h"
 #include "utils.h"
+#include "logic.h"
 
 bool TESTING = false;
 

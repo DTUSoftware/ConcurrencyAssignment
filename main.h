@@ -25,16 +25,6 @@ int accountMenu();
 
 int transferMenu();
 
-void *withdraw(void *arg);
-
-void *deposit(void *arg);
-
-int createAccountDB();
-
-int setAccountBalance(int balance);
-
-int getAccountBalance(int *balance);
-
 extern bool DEBUG;
 
 extern pthread_mutex_t account_mutex;

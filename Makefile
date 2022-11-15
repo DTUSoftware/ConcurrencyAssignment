@@ -3,7 +3,7 @@ CCOPTS = -c -O2 -g -Wall
 LINKOPTS = -O2 -g
 
 TARGET = bank
-SRCS = main.c utils.c test.c
+SRCS = main.c logic.c utils.c test.c
 OBJECTS = $(SRCS:.c=.o)
 
 LIBS = -pthread
