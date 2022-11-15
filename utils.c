@@ -39,7 +39,7 @@ int getCustomValue(int *value) {
     if (readinput(bufferptr, 1, stdin) != OK) {
         // if we could not read, and not caused by memory error, try again
         free(buffer);
-        return 1;
+        return ERROR;
     }
     buffer = *bufferptr;
     free(bufferptr);
