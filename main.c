@@ -13,6 +13,7 @@ bool DEBUG = true;
 pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
     if (argc < 2) {
         return bankMenu();
     } else if (strcmp(argv[1], "-test") == 0)
@@ -115,9 +116,9 @@ int getAccountBalance(int *balance) {
         free(bufferptr);
         fclose(file);
 
-        if (DEBUG) {
-            printf("Account balance string: %s\n", buffer);
-        }
+//        if (DEBUG) {
+//            printf("Account balance string: %s\n", buffer);
+//        }
 
         if (convertStrToInt(buffer, balance) != OK) {
             if (DEBUG) {
@@ -127,9 +128,9 @@ int getAccountBalance(int *balance) {
             return ERROR;
         }
 
-        if (DEBUG) {
-            printf("Account balance int: %d\n", *balance);
-        }
+//        if (DEBUG) {
+//            printf("Account balance int: %d\n", *balance);
+//        }
 
         return OK;
     } else {
@@ -164,19 +165,37 @@ void *withdraw(void *arg) {
 
     int *amount = (int *) arg;
     if (*amount <= 0) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Withdrawal amount cannot be below 0!\n");
         *ret = ERROR;
         pthread_exit(ret);
     }
 
+    if (DEBUG) { printf("[%lu] ", pthread_self()); }
     printf("> Waiting to withdraw...\n");
     pthread_mutex_lock(&account_mutex);
-    printf("> Withdrawing %d$...\n", *amount);
+    if (DEBUG) { printf("[%lu] ", pthread_self()); }
+    printf("> Done waiting to withdraw...\n");
+
+    if (DEBUG) {
+        printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
+        fflush(stdout);
+    }
+    sleep(1);
+    if (DEBUG) {
+        printf("[%lu] Done sleeping!\n", pthread_self());
+    }
+
+    if (!TESTING) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
+        printf("> Withdrawing %d$...\n", *amount);
+    }
 
     int *balance = malloc(sizeof(int));
     assert(balance != NULL);
 
     if (getAccountBalance(balance) != OK) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't get account balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
@@ -185,6 +204,7 @@ void *withdraw(void *arg) {
     }
 
     if (setAccountBalance(*balance - *amount) != OK) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't set balance!\n");
         free(balance);
         pthread_mutex_unlock(&account_mutex);
@@ -192,9 +212,15 @@ void *withdraw(void *arg) {
         pthread_exit(ret);
     }
 
-    sleep(3);
+//    sleep(3);
     pthread_mutex_unlock(&account_mutex);
-    printf("> Done transferring!\n");
+    if (DEBUG) { printf("[%lu] ", pthread_self()); }
+    if (!TESTING) {
+        printf("> Done transferring!\n");
+    }
+    else {
+        printf("> Released lock.\n");
+    }
     *ret = OK;
     pthread_exit(ret);
 }

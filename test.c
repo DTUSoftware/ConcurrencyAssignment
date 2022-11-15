@@ -6,8 +6,11 @@
 #include "main.h"
 #include "utils.h"
 
+bool TESTING = false;
+
 int testMain(int argc, char *argv[]) {
     int status = OK;
+    TESTING = true;
     if (argc < 2 || !strcmp(argv[1], "menu"))
         status = testMenu();
     else if (!strcmp(argv[1], "all"))
@@ -116,13 +119,17 @@ int prepareBeforeTest() {
 }
 
 int allTests() {
-    return (withdrawalTest() && depositTest() && transferTest());
+    if (withdrawalTest() == OK && depositTest() == OK && transferTest() == OK) {
+        return OK;
+    }
+    return ERROR;
 }
 
 int withdrawalTest() {
     int status;
 
     pthread_t withdrawal_threads[MAX_THREAD_AMOUNT];
+    int withdrawal_amounts[MAX_THREAD_AMOUNT];
     void *pthread_statuses[MAX_THREAD_AMOUNT];
 
     // Random tests, running two or more pthreads at once
@@ -138,6 +145,7 @@ int withdrawalTest() {
 
         // Run x amount of random tests
         for (int j = 0; j < RANDOM_TESTS_PER_RUN; j++) {
+            printf("Running test %d/%d with %d/%d threads.\n", j, RANDOM_TESTS_PER_RUN, i, MAX_THREAD_AMOUNT);
 
             // Withdraw a random amount for each thread
             for (int k = 0; k < i; k++) {
@@ -146,10 +154,10 @@ int withdrawalTest() {
                     return status;
                 }
                 // Multiply the random number by our current iteration
-                int withdrawal_amount = k*randInt;
+                withdrawal_amounts[k] = j*randInt;
                 // Subtract from our account balance
-                account_balance = account_balance-withdrawal_amount;
-                if (pthread_create(&withdrawal_threads[k], NULL, withdraw, (void *) &withdrawal_amount)) {
+                account_balance = account_balance-withdrawal_amounts[k];
+                if (pthread_create(&withdrawal_threads[k], NULL, withdraw, (void *) &withdrawal_amounts[k])) {
                     printf("error creating thread.");
                     return ERROR;
                 }
@@ -164,9 +172,18 @@ int withdrawalTest() {
                 if (pthread_statuses[k] == NULL) {
                     return ERROR;
                 }
-                if (*((int *) pthread_statuses[k]) != OK) {
-                    free(pthread_statuses[k]);
-                    return ERROR;
+                // when withdrawing 0, it should return ERROR
+                if (j == 0) {
+                    if (*((int *) pthread_statuses[k]) == OK) {
+                        free(pthread_statuses[k]);
+                        return ERROR;
+                    }
+                }
+                else {
+                    if (*((int *) pthread_statuses[k]) != OK) {
+                        free(pthread_statuses[k]);
+                        return ERROR;
+                    }
                 }
                 free(pthread_statuses[k]);
             }
@@ -182,7 +199,7 @@ int withdrawalTest() {
             }
 
             if (*balance != account_balance) {
-                printf("Account balance not correct! (Expected %d - Actual %d)", account_balance, *balance);
+                printf("Account balance not correct! (Expected %d - Actual %d)\n", account_balance, *balance);
                 free(balance);
                 return ERROR;
             }
