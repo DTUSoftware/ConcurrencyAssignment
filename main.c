@@ -184,6 +184,7 @@ void *withdraw(void *arg) {
     // Get random sleep
     int randSleep;
     if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
+        pthread_mutex_unlock(&account_mutex);
         pthread_exit(ret);
     }
     usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
@@ -341,6 +342,7 @@ void *deposit(void *arg) {
     // Get random sleep
     int randSleep;
     if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
+        pthread_mutex_unlock(&account_mutex);
         pthread_exit(ret);
     }
     usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
