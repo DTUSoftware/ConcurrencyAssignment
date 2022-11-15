@@ -7,6 +7,8 @@
 #include <stdio.h>
 
 #define BUFFER_SIZE 20
+#define BASE_SLEEP_MICRO_SECONDS 100000
+#define SLEEP_MAX_MULTIPLICATION 5
 #define ACCOUNT_DB "./account_db"
 
 int main(int argc, char *argv[]);

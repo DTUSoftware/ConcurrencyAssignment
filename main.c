@@ -181,7 +181,12 @@ void *withdraw(void *arg) {
         printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
         fflush(stdout);
     }
-    sleep(1);
+    // Get random sleep
+    int randSleep;
+    if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
+        pthread_exit(ret);
+    }
+    usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
     if (DEBUG) {
         printf("[%lu] Done sleeping!\n", pthread_self());
     }
@@ -329,6 +334,20 @@ void *deposit(void *arg) {
     pthread_mutex_lock(&account_mutex);
     printf("> Transferring %d$...\n", *amount);
 
+    if (DEBUG) {
+        printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
+        fflush(stdout);
+    }
+    // Get random sleep
+    int randSleep;
+    if ((*ret = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
+        pthread_exit(ret);
+    }
+    usleep(randSleep*BASE_SLEEP_MICRO_SECONDS);
+    if (DEBUG) {
+        printf("[%lu] Done sleeping!\n", pthread_self());
+    }
+
     int *balance = malloc(sizeof(int));
     assert(balance != NULL);
 
@@ -348,7 +367,7 @@ void *deposit(void *arg) {
         pthread_exit(ret);
     }
 
-    sleep(3);
+//    sleep(3);
     pthread_mutex_unlock(&account_mutex);
     printf("> Done transferring!\n");
     *ret = OK;

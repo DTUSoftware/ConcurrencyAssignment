@@ -125,11 +125,11 @@ int allTests() {
     return ERROR;
 }
 
-int withdrawalTest() {
+int runTest(int test_type) {
     int status;
 
-    pthread_t withdrawal_threads[MAX_THREAD_AMOUNT];
-    int withdrawal_amounts[MAX_THREAD_AMOUNT];
+    pthread_t threads[MAX_THREAD_AMOUNT];
+    int amounts[MAX_THREAD_AMOUNT];
     void *pthread_statuses[MAX_THREAD_AMOUNT];
 
     // Random tests, running two or more pthreads at once
@@ -154,26 +154,45 @@ int withdrawalTest() {
                     return status;
                 }
                 // Multiply the random number by our current iteration
-                withdrawal_amounts[k] = j*randInt;
-                // Subtract from our account balance
-                account_balance = account_balance-withdrawal_amounts[k];
-                if (pthread_create(&withdrawal_threads[k], NULL, withdraw, (void *) &withdrawal_amounts[k])) {
-                    printf("error creating thread.");
-                    return ERROR;
+                amounts[k] = j*randInt;
+                // Adjust our account balance
+                switch (test_type) {
+                    case WITHDRAWAL:
+                    case TRANSFER: {
+                        account_balance = account_balance-amounts[k];
+                        if (pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) {
+                            printf("error creating thread.");
+                            return ERROR;
+                        }
+                        break;
+                    }
+                    case DEPOSIT: {
+                        account_balance = account_balance+amounts[k];
+                        if (pthread_create(&threads[k], NULL, deposit, (void *) &amounts[k])) {
+                            printf("error creating thread.");
+                            return ERROR;
+                        }
+                        break;
+                    }
+                    default: {
+                        printf("Unknown test type!\n");
+                        return ERROR;
+                    }
                 }
+
             }
 
             // Join all the threads
             for (int k = 0; k < i; k++) {
-                if (pthread_join(withdrawal_threads[k], &pthread_statuses[k])) {
+                if (pthread_join(threads[k], &pthread_statuses[k])) {
                     printf("error joining thread.");
                     return ERROR;
                 }
                 if (pthread_statuses[k] == NULL) {
                     return ERROR;
                 }
-                // when withdrawing 0, it should return ERROR
-                if (j == 0) {
+                // when using a value under or equal to 0, it should return ERROR
+                if (j <= 0) {
                     if (*((int *) pthread_statuses[k]) == OK) {
                         free(pthread_statuses[k]);
                         return ERROR;
@@ -210,18 +229,17 @@ int withdrawalTest() {
     return status;
 }
 
+int withdrawalTest() {
+    printf("Running withdrawal tests...\n");
+    return runTest(WITHDRAWAL);
+}
+
 int depositTest() {
-    int status;
-    if ((status = prepareBeforeTest()) != OK) {
-        return status;
-    }
-    return status;
+    printf("Running deposit tests...\n");
+    return runTest(DEPOSIT);
 }
 
 int transferTest() {
-    int status;
-    if ((status = prepareBeforeTest()) != OK) {
-        return status;
-    }
-    return status;
+    printf("Running transfer tests...\n");
+    return runTest(TRANSFER);
 }

@@ -22,4 +22,12 @@ int depositTest();
 
 int transferTest();
 
+int runTest(int test_type);
+
+enum TEST_TYPE {
+    WITHDRAWAL,
+    DEPOSIT,
+    TRANSFER
+};
+
 #endif //BANK_TEST_H
