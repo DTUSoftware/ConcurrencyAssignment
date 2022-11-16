@@ -7,14 +7,85 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include    <stdio.h>
+#include    <stdlib.h>
+#include    <unistd.h>
+#include    <fcntl.h>
+#include    <sys/mman.h>
+#include <errno.h>
+#include    <pthread.h>
 #include "utils.h"
 #include "logic.h"
 
 bool DEBUG = true;
-pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t *account_mutex = NULL;
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
+
+    // Shared Memory: https://users.cs.cf.ac.uk/Dave.Marshall/C/node27.html
+    // https://www.ibm.com/docs/en/zos/2.1.0?topic=functions-shmat-shared-memory-attach-operation
+    key_t key = 6969; /* key to be passed to shmget() */
+    int shmflg = IPC_CREAT | IPC_EXCL | 0666; /* shmflg to be passed to shmget() */
+    int shmid; /* return value from shmget() */
+
+    // Create segment
+    if ((shmid = shmget(key, sizeof(void*)*2, shmflg)) == -1) {
+        printf("Could not create segment\n");
+        if (errno == EEXIST) {
+            printf("Segment already created\n");
+            if ((shmid = shmget(key, sizeof(void*)*2, 0666)) == -1) {
+                printf("Could not get already created segment\n");
+                return ERROR;
+            }
+        }
+        else {
+            return ERROR;
+        }
+    }
+
+    // Attach segment to mutex lock
+    void **shared_memory;
+    if ((shared_memory = shmat(shmid, NULL, 0)) == (void*) -1) {
+        printf("Could not attach segment\n");
+        return ERROR;
+    }
+
+    int *initialized = ((int **) shared_memory)[0];
+    account_mutex = ((pthread_mutex_t **) shared_memory)[1];
+
+    if (*initialized != 42069) {
+        printf("Initializing shared mutex...\n");
+        *initialized = 42069;
+
+        // https://stackoverflow.com/questions/28164391/lock-mutex-in-shared-memory
+        account_mutex = (pthread_mutex_t*)mmap(NULL, sizeof(pthread_mutex_t), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+        if( MAP_FAILED==account_mutex )
+        {
+            perror("mmap");
+            exit(1);
+        }
+
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+
+        //set mutex process shared
+        if(pthread_mutexattr_setpshared(&attr,PTHREAD_PROCESS_SHARED) != 0)
+        {
+            perror("init_mutex pthread_mutexattr_setpshared");
+            exit(1);
+        }
+
+        pthread_mutex_init(account_mutex, &attr);
+    }
+    else {
+        printf("Got shared mutex!\n");
+    }
+
+    // Run the functions
     if (argc < 2) {
         return bankMenu();
     } else if (strcmp(argv[1], "-test") == 0)

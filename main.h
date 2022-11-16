@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define BUFFER_SIZE 20
-#define BASE_SLEEP_MICRO_SECONDS 100000
+#define BASE_SLEEP_MICRO_SECONDS 1000000
 #define SLEEP_MAX_MULTIPLICATION 5
 #define ACCOUNT_DB "./account_db"
 
@@ -29,7 +29,9 @@ int transferMenu();
 
 extern bool DEBUG;
 
-extern pthread_mutex_t account_mutex;
+
+
+extern pthread_mutex_t *account_mutex;
 
 enum STATUS {
     OK = 0,
