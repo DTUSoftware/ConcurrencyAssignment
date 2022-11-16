@@ -5,6 +5,7 @@
 #include "test.h"
 #include "main.h"
 #include "utils.h"
+#include "logic.h"
 
 bool TESTING = false;
 
@@ -41,45 +42,53 @@ int testMain(int argc, char *argv[]) {
 }
 
 int testMenu() {
-    clearScreen();
-    printf("=====[ Testing Menu ]=====\n");
-    printf("Choose Test:\n\t[0] Exit\n\t[1] Run All Tests\n\t[2] Withdrawal Test\n\t[3] Deposit Test\n\t[4] Transfer Test\n");
-
-    printf("> ");
-    fflush(stdout);
-
-    int readChar = getchar();  // Read option from input
-    while (getchar() != '\n'); // Flush any excess input out
-
     int status = OK;
 
-    switch (readChar) {
-        case '0': {
+    int *option = malloc(sizeof(int));
+    assert(option != NULL);
+
+    char *title = "DTU Student Bank ATM (Testing Menu)";
+    char *optionText = "Choose Test:";
+    char *options[6];
+    options[0] = "Exit";
+    options[1] = "Run All Tests";
+    options[2] = "Withdrawal Test";
+    options[3] = "Deposit Test";
+    options[4] = "Transfer Test";
+    options[5] = NULL;
+
+    if ((status = menu(title, NULL, optionText, options, 1, option)) != OK) {
+        free(option);
+        return status;
+    }
+
+    switch (*option) {
+        case 0: {
             status = OK;
             break;
         }
-        case '1': {
+        case 1: {
             if ((status = allTests()) == OK)
                 printf("All tests completed successfully!\n");
             else
                 printf("Tests failed!\n");
             break;
         }
-        case '2': {
+        case 2: {
             if ((status = withdrawalTest()) == OK)
                 printf("Withdrawal test completed successfully!\n");
             else
                 printf("Withdrawal test failed!\n");
             break;
         }
-        case '3': {
+        case 3: {
             if ((status = depositTest()) == OK)
                 printf("Deposit test completed successfully!\n");
             else
                 printf("Deposit test failed!\n");
             break;
         }
-        case '4': {
+        case 4: {
             if ((status = transferTest()) == OK)
                 printf("Transfer test completed successfully!\n");
             else
@@ -154,12 +163,12 @@ int runTest(int test_type) {
                     return status;
                 }
                 // Multiply the random number by our current iteration
-                amounts[k] = j*randInt;
+                amounts[k] = j * randInt;
                 // Adjust our account balance
                 switch (test_type) {
                     case WITHDRAWAL:
                     case TRANSFER: {
-                        account_balance = account_balance-amounts[k];
+                        account_balance = account_balance - amounts[k];
                         if (pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) {
                             printf("error creating thread.");
                             return ERROR;
@@ -167,7 +176,7 @@ int runTest(int test_type) {
                         break;
                     }
                     case DEPOSIT: {
-                        account_balance = account_balance+amounts[k];
+                        account_balance = account_balance + amounts[k];
                         if (pthread_create(&threads[k], NULL, deposit, (void *) &amounts[k])) {
                             printf("error creating thread.");
                             return ERROR;
@@ -197,8 +206,7 @@ int runTest(int test_type) {
                         free(pthread_statuses[k]);
                         return ERROR;
                     }
-                }
-                else {
+                } else {
                     if (*((int *) pthread_statuses[k]) != OK) {
                         free(pthread_statuses[k]);
                         return ERROR;
