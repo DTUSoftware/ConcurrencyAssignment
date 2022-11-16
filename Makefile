@@ -13,8 +13,10 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(LINKOPTS) $(LIBS) -o $@ $^
 
-%.o:%.c
+%.o: %.c
 	$(CC) $(CCOPTS) -o $@ $^
+
+%.c: %.h
 
 clean:
 	- $(RM) $(TARGET)
