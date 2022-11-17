@@ -1,6 +1,6 @@
 CC = gcc
-CCOPTS = -c -O2 -g -Wall
-LINKOPTS = -O2 -g
+CCOPTS = -c -O2 -g -Wall -Wextra
+LINKOPTS = -O2 -g -Wall -Wextra
 
 TARGET = bank
 SRCS = main.c logic.c utils.c test.c
@@ -13,10 +13,8 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(LINKOPTS) $(LIBS) -o $@ $^
 
-%.o: %.c
+%.o: %.c %h
 	$(CC) $(CCOPTS) -o $@ $^
-
-%.c: %.h
 
 clean:
 	- $(RM) $(TARGET)

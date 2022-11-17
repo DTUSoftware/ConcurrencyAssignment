@@ -58,6 +58,7 @@ int init() {
     int shmid; /* return value from shmget() */
 
     // Create segment
+    printf("Creating segment with key %d\n", SHARED_MEM_KEY);
     if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t), shmflg)) == -1) {
         if (DEBUG) printf("Could not create segment - errno: %s (%d)\n", strerror(errno), errno);
         if (errno == EEXIST) {
