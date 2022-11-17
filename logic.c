@@ -85,7 +85,9 @@ int changeBalance(int amount) {
     // (Wait for mutex to be unlocked) and lock it, so two processes/threads don't change stuff at the same time
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     printf("> Waiting to perform balance change...\n");
-    pthread_mutex_lock(&account_mutex);
+    if ((status = pthread_mutex_lock(account_mutex)) != OK) {
+        return status;
+    }
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     printf("> Done waiting to perform balance change!\n");
 
@@ -97,7 +99,9 @@ int changeBalance(int amount) {
     // Get random sleep
     int randSleep;
     if ((status = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
-        pthread_mutex_unlock(&account_mutex);
+        if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+            return status;
+        }
         return status;
     }
     usleep(randSleep * BASE_SLEEP_MICRO_SECONDS);
@@ -119,7 +123,9 @@ int changeBalance(int amount) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't get account balance!\n");
         free(balance);
-        pthread_mutex_unlock(&account_mutex);
+        if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+            return status;
+        }
         return status;
     }
 
@@ -128,12 +134,16 @@ int changeBalance(int amount) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't set balance!\n");
         free(balance);
-        pthread_mutex_unlock(&account_mutex);
+        if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+            return status;
+        }
         return status;
     }
 
     // Now that we're done, we unlock the mutex, so others can get to change stuff
-//    pthread_mutex_unlock(&account_mutex);
+    if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+        return status;
+    }
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     if (!TESTING) {
         printf("> Done transferring!\n");
@@ -149,7 +159,15 @@ void *balanceCheck(void *balance_ptr) {
     assert(ret != NULL);
 
     int *balance = (int *) balance_ptr;
-    *ret = getAccountBalance(balance);
+    if ((*ret = pthread_mutex_lock(account_mutex)) != OK) {
+        pthread_exit(ret);
+    }
+    if ((*ret = getAccountBalance(balance)) != OK) {
+        pthread_exit(ret);
+    }
+    if ((*ret = pthread_mutex_unlock(account_mutex)) != OK) {
+        pthread_exit(ret);
+    }
     pthread_exit(ret);
 }
 

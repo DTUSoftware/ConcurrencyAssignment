@@ -48,7 +48,7 @@ int testMenu() {
     assert(option != NULL);
 
     char *title = "DTU Student Bank ATM (Testing Menu)";
-    char *optionText = "Choose Test:";
+    char *optionText = "Choose Test";
     char *options[6];
     options[0] = "Exit";
     options[1] = "Run All Tests";
