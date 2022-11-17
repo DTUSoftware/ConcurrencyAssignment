@@ -13,8 +13,8 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(LINKOPTS) $(LIBS) -o $@ $^
 
-%.o: %.c %h
-	$(CC) $(CCOPTS) -o $@ $^
+%.o: %.c %.h
+	$(CC) $(CCOPTS) -o $@ $<
 
 clean:
 	- $(RM) $(TARGET)
@@ -22,6 +22,7 @@ clean:
 	- $(RM) $(OBJECTS)
 	- $(RM) *~
 	- $(RM) *.h.gch
+	- $(RM) *.d
 	- $(RM) core.*
 	- $(RM) account_db
 
