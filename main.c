@@ -14,7 +14,6 @@
 #include    <stdlib.h>
 #include    <unistd.h>
 #include    <fcntl.h>
-#include    <sys/mman.h>
 #include <errno.h>
 #include    <pthread.h>
 #include "utils.h"
@@ -24,76 +23,101 @@ bool DEBUG = true;
 pthread_mutex_t *account_mutex = NULL;
 
 int main(int argc, char *argv[]) {
-    srand(time(NULL));
+    int status = OK;
 
-    // Shared Memory: https://users.cs.cf.ac.uk/Dave.Marshall/C/node27.html
-    // https://www.ibm.com/docs/en/zos/2.1.0?topic=functions-shmat-shared-memory-attach-operation
-    key_t key = 6969; /* key to be passed to shmget() */
-    int shmflg = IPC_CREAT | IPC_EXCL | 0666; /* shmflg to be passed to shmget() */
-    int shmid; /* return value from shmget() */
-
-    // Create segment
-    if ((shmid = shmget(key, sizeof(void*)*2, shmflg)) == -1) {
-        printf("Could not create segment\n");
-        if (errno == EEXIST) {
-            printf("Segment already created\n");
-            if ((shmid = shmget(key, sizeof(void*)*2, 0666)) == -1) {
-                printf("Could not get already created segment\n");
-                return ERROR;
-            }
-        }
-        else {
-            return ERROR;
-        }
-    }
-
-    // Attach segment to mutex lock
-    void **shared_memory;
-    if ((shared_memory = shmat(shmid, NULL, 0)) == (void*) -1) {
-        printf("Could not attach segment\n");
-        return ERROR;
-    }
-
-    int *initialized = ((int **) shared_memory)[0];
-    account_mutex = ((pthread_mutex_t **) shared_memory)[1];
-
-    if (*initialized != 42069) {
-        printf("Initializing shared mutex...\n");
-        *initialized = 42069;
-
-        // https://stackoverflow.com/questions/28164391/lock-mutex-in-shared-memory
-        account_mutex = (pthread_mutex_t*)mmap(NULL, sizeof(pthread_mutex_t), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-        if( MAP_FAILED==account_mutex )
-        {
-            perror("mmap");
-            exit(1);
-        }
-
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-
-        //set mutex process shared
-        if(pthread_mutexattr_setpshared(&attr,PTHREAD_PROCESS_SHARED) != 0)
-        {
-            perror("init_mutex pthread_mutexattr_setpshared");
-            exit(1);
-        }
-
-        pthread_mutex_init(account_mutex, &attr);
-    }
-    else {
-        printf("Got shared mutex!\n");
+    if ((status = init()) != OK) {
+        printf("Failed to initialize!\n");
+        return status;
     }
 
     // Run the functions
     if (argc < 2) {
-        return bankMenu();
+        status = bankMenu();
     } else if (strcmp(argv[1], "-test") == 0)
-        return testMain(argc - 1, argv + 1);
+        status = testMain(argc - 1, argv + 1);
     else {
         printf("Usage: bank [-test <menu | test [all | withdrawal | deposit | transfer]>]\n");
+        status = ERROR;
+    }
+    return status;
+}
+
+int init() {
+    int status = OK;
+
+    // Set random seed to current time
+    srand(time(NULL));
+
+    // Shared Memory: https://users.cs.cf.ac.uk/Dave.Marshall/C/node27.html
+    // https://www.ibm.com/docs/en/zos/2.1.0?topic=functions-shmat-shared-memory-attach-operation
+    // https://man7.org/linux/man-pages/man2/shmget.2.html
+    // https://www.ibm.com/docs/en/zos/2.1.0?topic=functions-shmget-get-shared-memory-segment
+    // https://linux.die.net/man/2/shmat
+    key_t key = SHARED_MEM_KEY; /* key to be passed to shmget() */
+    int shmflg = IPC_CREAT | IPC_EXCL | 0777; /* shmflg to be passed to shmget() */
+    int shmid; /* return value from shmget() */
+
+    // Create segment
+    if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t), shmflg)) == -1) {
+        if (DEBUG) printf("Could not create segment - errno: %s (%d)\n", strerror(errno), errno);
+        if (errno == EEXIST) {
+            if (DEBUG) printf("Segment already created\n");
+            // shmflg 0: try to get the created segment
+            if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t), 0)) == -1) {
+                if (DEBUG)
+                    printf("Could not get already created shared mutex! - errno: %s (%d)\n", strerror(errno), errno);
+                return shmid;
+            } else {
+                if (DEBUG) printf("Got created segment!\n");
+            }
+        } else {
+            if (DEBUG) printf("Could not create shared mutex!\n");
+            return shmid;
+        }
+    }
+
+    // Attach segment to mutex lock
+    void *shared_memory;
+    if ((shared_memory = (void *) shmat(shmid, NULL, 0)) == (void *) -1) {
+        if (DEBUG) printf("Could not attach segment\n");
         return ERROR;
     }
+
+    int *initialized = shared_memory;
+
+    account_mutex = shared_memory + sizeof(int);
+
+    if (*initialized == -SHARED_MEM_INIT_KEY) {
+        while (*initialized == -SHARED_MEM_INIT_KEY) {
+            if (DEBUG) printf("Waiting for initialization to finish...\n");
+            sleep(1);
+        }
+    } else if (*initialized != SHARED_MEM_INIT_KEY) {
+        *initialized = -SHARED_MEM_INIT_KEY;
+        if (DEBUG) printf("Initializing shared mutex...\n");
+
+        // https://www.ibm.com/docs/en/zos/2.3.0?topic=functions-pthread-mutex-init-initialize-mutex-object
+        pthread_mutexattr_t attr;
+        if ((status = pthread_mutexattr_init(&attr)) != OK) {
+            return status;
+        }
+
+        // set mutex shared attribute
+        if ((status = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) != OK) {
+            return status;
+        }
+
+        // init mutex
+        if ((status = pthread_mutex_init(account_mutex, &attr)) != OK) {
+            return status;
+        }
+
+        if (DEBUG) printf("Initialized!\n");
+        *initialized = SHARED_MEM_INIT_KEY;
+    } else {
+        if (DEBUG) printf("Got shared mutex!\n");
+    }
+    return status;
 }
 
 // Maximum of 10 options (0 - 9)
@@ -253,7 +277,7 @@ int bankMenu() {
 }
 
 int menuDoneWait() {
-    printf("Do you want a receipt?\n\t[0] No\t[1] Yes\n");
+    printf("\n\nDo you want a receipt?\n\t[0] No\t[1] Yes\n");
 
     printf("> ");
     fflush(stdout);
@@ -262,8 +286,14 @@ int menuDoneWait() {
     while (getchar() != '\n'); // Flush any excess input out
 
     if (readChar == '1') {
-        printf("Printing receipt...\n");
-        sleep(3);
+        printf("\nPrinting receipt");
+        fflush(stdout);
+        for (int i = 0; i < 3; i++) {
+            printf(".");
+            fflush(stdout);
+            sleep(1);
+        }
+        printf("\n");
     }
 
     return OK;
@@ -283,9 +313,9 @@ int actionMenu(int action_type) {
 
     char *title = (action_type == WITHDRAWAL) ? "Withdrawal Menu" : ((action_type == DEPOSIT) ? "Deposit Menu"
                                                                                               : "Transfer Menu");
-    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount:" : ((action_type == DEPOSIT)
-                                                                                  ? "Choose Deposit Amount:"
-                                                                                  : "Choose Transfer Amount:");
+    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount" : ((action_type == DEPOSIT)
+                                                                                 ? "Choose Deposit Amount"
+                                                                                 : "Choose Transfer Amount");
     char *options[8];
     options[0] = "50kr,-";
     options[1] = "100kr,-";

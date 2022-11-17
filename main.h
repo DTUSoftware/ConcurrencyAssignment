@@ -9,9 +9,13 @@
 #define BUFFER_SIZE 20
 #define BASE_SLEEP_MICRO_SECONDS 1000000
 #define SLEEP_MAX_MULTIPLICATION 5
+#define SHARED_MEM_KEY 6969
+#define SHARED_MEM_INIT_KEY 42069
 #define ACCOUNT_DB "./account_db"
 
 int main(int argc, char *argv[]);
+
+int init();
 
 int menu(char *title, char *description, char *optionText, char **options, int columns, int *chosenOption);
 
@@ -28,7 +32,6 @@ int accountMenu();
 int transferMenu();
 
 extern bool DEBUG;
-
 
 
 extern pthread_mutex_t *account_mutex;
