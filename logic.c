@@ -133,7 +133,7 @@ int changeBalance(int amount) {
     }
 
     // Now that we're done, we unlock the mutex, so others can get to change stuff
-    pthread_mutex_unlock(&account_mutex);
+//    pthread_mutex_unlock(&account_mutex);
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     if (!TESTING) {
         printf("> Done transferring!\n");

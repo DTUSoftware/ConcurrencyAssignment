@@ -4,10 +4,10 @@
 
 
 ## What is the idea of the application:
-The idea of this application is to create, use and understand threads. 
+The idea of this application is to create, use and understand threads. This is done via us making an ATM machine where  
 From here we need to solve the problems that can happen when working with threads.
 
-For our application we chose to create a bank ATM application, where you can deposit, withdraw, transfer and so on. This would supply the needed problems revolving concurrency, for us to solve.
+For our application we chose to create a bank ATM application, where you can deposit, withdraw, transfer and so on. This would supply the needed for problems revolving concurrency, for us to solve.
 
 
 ## Why concurrency is needed:
