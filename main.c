@@ -384,6 +384,7 @@ int actionMenu(int action_type) {
     pthread_t thread;
 
     switch (action_type) {
+        case TRANSFER:
         case WITHDRAWAL: {
             if (pthread_create(&thread, NULL, withdraw, (void *) amount)) {
                 printf("Error creating thread.\n");
@@ -393,7 +394,6 @@ int actionMenu(int action_type) {
             }
             break;
         }
-        case TRANSFER:
         case DEPOSIT: {
             if (pthread_create(&thread, NULL, deposit, (void *) amount)) {
                 printf("Error creating thread.\n");
