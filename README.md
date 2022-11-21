@@ -1,13 +1,27 @@
 # ConcurrencyAssignment
 62588 Operating systems Fall 22 - Concurrency Assignment
 
+## How to run
+
+To compile the application, make sure that you have make and gcc installed.
+To run the program run the following command:
+```bash
+make run
+```
+Since the code uses shared memory, you can run several instances of the same program since we have used shared memory.
+
+To run our self-made tests on the program run:
+```bash
+make test
+```
+If you want to clean up run
+```bash
+make clean
+```
 
 ## What is the idea of the application:
-<<<<<<< HEAD
 The idea of this application is to create, use and understand threads. This is done via us making an ATM machine where  
-=======
-The idea of this application is to create, use and understand threads.
->>>>>>> 671d59124f058c52e65f7e62f881b59ebe6ce01c
+
 From here we need to solve the problems that can happen when working with threads.
 
 For our application we chose to create a bank ATM application, where you can deposit, withdraw, transfer and so on. This would supply the needed for problems revolving concurrency, for us to solve.
