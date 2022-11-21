@@ -106,6 +106,20 @@ int changeBalance(int amount) {
         printf("> Transferring...\n");
     }
 
+    // First we get the current balance
+    if ((status = getAccountBalance(balance)) != OK) {
+        if (DEBUG) { printf("[%lu] ", pthread_self()); }
+        printf("Couldn't get account balance! - %d\n", status);
+        free(balance);
+        if ((status = unlockMutex()) != OK) {
+            return status;
+        }
+        return status;
+    }
+
+    // We store the account balance before changing it, in case we crash during the change or get interrupted while sleeping
+    *commit_balance = *balance;
+
     // Sleep so other processes can get "queued"
     if (DEBUG) printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
     // Get random sleep
@@ -124,20 +138,6 @@ int changeBalance(int amount) {
     if (!TESTING) {
         if (DEBUG) printf("[%lu] > Changing balance by %d$...\n", pthread_self(), amount);
     }
-
-    // First we get the current balance
-    if ((status = getAccountBalance(balance)) != OK) {
-        if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("Couldn't get account balance! - %d\n", status);
-        free(balance);
-        if ((status = unlockMutex()) != OK) {
-            return status;
-        }
-        return status;
-    }
-
-    // We store the account balance before changing it, in case we crash during the change
-    *commit_balance = *balance;
 
     // And then we change the balance
     if ((status = setAccountBalance(*balance + amount)) != OK) {
@@ -325,16 +325,21 @@ void *houseKeepingTask() {
                     usleep(1000000 / HOUSEKEEPING_CHECKS_PER_SECOND);
                 }
 
+                // if still locked, we forcibly unlock it, since we assume that a deadlock happened
                 if (unlocked == false) {
                     if (DEBUG) printf("[Housekeeping] Housekeeping found deadlock - trying to unlock!\n");
 
-                    // if still locked, we forcibly unlock it, since we assume that a deadlock happened
-                    if ((*ret = setAccountBalance(*commit_balance)) != OK) {
-                        // we don't return, since we still want to unlock the mutex, but an error occurred
-                        printf("[Housekeeping] Error occurred while resetting balance from deadlocked mutex. - %d\n",
-                               *ret);
+                    // before setting the account balance, we check if the locking mutex is not 0
+                    if (*current_mutex_id != 0) {
+                        if ((*ret = setAccountBalance(*commit_balance)) != OK) {
+                            // we don't return, since we still want to unlock the mutex, but an error occurred
+                            printf("[Housekeeping] Error occurred while resetting balance from deadlocked mutex. - %d\n",
+                                   *ret);
+                        } else {
+                            if (DEBUG) printf("[Housekeeping] Successfully unlocked again!\n");
+                        }
                     } else {
-                        if (DEBUG) printf("[Housekeeping] Successfully unlocked again!\n");
+                        if (DEBUG) printf("[Housekeeping] Will not reset balance to before commit - mutex id is 0!\n");
                     }
 
                     // reset and unlock
