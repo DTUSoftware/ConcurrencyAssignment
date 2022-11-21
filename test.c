@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "test.h"
 #include "main.h"
 #include "utils.h"
@@ -29,8 +30,13 @@ int testMain(int argc, char *argv[]) {
             printf("Deposit test completed successfully!\n");
         else
             printf("Deposit test failed!\n");
+    else if (!strcmp(argv[1], "deadlock"))
+        if ((status = deadlockTest()) == OK)
+            printf("Deadlock test completed successfully!\n");
+        else
+            printf("Deadlock test failed!\n");
     else {
-        printf("Usage: bank [-test [menu | all | withdrawal | deposit]]\n");
+        printf("Usage: bank [-test [menu | all | withdrawal | deposit | deadlock]]\n");
         status = ERROR;
     }
     return status;
@@ -49,7 +55,8 @@ int testMenu() {
     options[1] = "Run All Tests";
     options[2] = "Withdrawal Test";
     options[3] = "Deposit Test";
-    options[4] = NULL;
+    options[4] = "Deadlock Test";
+    options[5] = NULL;
 
     if ((status = menu(title, NULL, optionText, options, 1, option)) != OK) {
         free(option);
@@ -80,6 +87,13 @@ int testMenu() {
                 printf("Deposit test completed successfully!\n");
             else
                 printf("Deposit test failed!\n");
+            break;
+        }
+        case 4: {
+            if ((status = deadlockTest()) == OK)
+                printf("Deadlock test completed successfully!\n");
+            else
+                printf("Deadlock test failed!\n");
             break;
         }
         default: {
@@ -115,7 +129,7 @@ int prepareBeforeTest() {
 }
 
 int allTests() {
-    if (withdrawalTest() == OK && depositTest() == OK) {
+    if (withdrawalTest() == OK && depositTest() == OK && deadlockTest() == OK) {
         return OK;
     }
     return ERROR;
@@ -155,17 +169,17 @@ int runTest(int test_type) {
                 switch (test_type) {
                     case WITHDRAWAL: {
                         account_balance = account_balance - amounts[k];
-                        if (pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) {
+                        if ((status = pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) != OK) {
                             printf("error creating thread.");
-                            return ERROR;
+                            return status;
                         }
                         break;
                     }
                     case DEPOSIT: {
                         account_balance = account_balance + amounts[k];
-                        if (pthread_create(&threads[k], NULL, deposit, (void *) &amounts[k])) {
+                        if ((status = pthread_create(&threads[k], NULL, deposit, (void *) &amounts[k])) != OK) {
                             printf("error creating thread.");
-                            return ERROR;
+                            return status;
                         }
                         break;
                     }
@@ -179,36 +193,38 @@ int runTest(int test_type) {
 
             // Join all the threads
             for (int k = 0; k < i; k++) {
-                if (pthread_join(threads[k], &pthread_statuses[k])) {
+                if ((status = pthread_join(threads[k], &pthread_statuses[k])) != OK) {
                     printf("error joining thread.");
-                    return ERROR;
+                    return status;
                 }
                 if (pthread_statuses[k] == NULL) {
                     return ERROR;
                 }
+                status = *((int *) pthread_statuses[k]);
                 // when using a value under or equal to 0, it should return ERROR
                 if (j <= 0) {
-                    if (*((int *) pthread_statuses[k]) == OK) {
+                    if (status == OK) {
                         free(pthread_statuses[k]);
-                        return ERROR;
+                        return status;
                     }
                 } else {
-                    if (*((int *) pthread_statuses[k]) != OK) {
+                    if (status != OK) {
                         free(pthread_statuses[k]);
-                        return ERROR;
+                        return status;
                     }
                 }
                 free(pthread_statuses[k]);
+                status = OK;
             }
 
             // Check account balance
             int *balance = malloc(sizeof(int));
             assert(balance != NULL);
 
-            if (getAccountBalance(balance) != OK) {
+            if ((status = getAccountBalance(balance)) != OK) {
                 printf("Couldn't get account balance!\n");
                 free(balance);
-                return ERROR;
+                return status;
             }
 
             if (*balance != account_balance) {
@@ -231,4 +247,57 @@ int withdrawalTest() {
 int depositTest() {
     printf("Running deposit tests...\n");
     return runTest(DEPOSIT);
+}
+
+int deadlockTest() {
+    int status = OK;
+    printf("Running deadlock test...\n");
+
+    // Prepare before test
+    if ((status = prepareBeforeTest()) != OK) {
+        return status;
+    }
+
+    // Set commit balance to 100
+    *commit_balance = 100;
+
+    printf("Locking mutex...\n");
+    if ((status = pthread_mutex_lock(account_mutex)) != OK) {
+        printf("Failed to lock mutex!\n");
+        return status;
+    }
+
+    printf("Waiting for deadlock timeout... (%d seconds)\n", HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS+5);
+    sleep(HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS+5); // add a buffer of 5 seconds
+    printf("Done waiting - checking mutex status!\n");
+
+    // check if it's still locked
+    // https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-mutex-trylock-attempt-lock-mutex-object
+    if ((status = pthread_mutex_trylock(account_mutex)) == OK) {
+        // if not locked, we locked it. Unlock it again
+        if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+            return status;
+        }
+
+        // check if the balance got set to 100
+        int *balance = malloc(sizeof(int));
+        assert(balance != NULL);
+
+        if ((status = getAccountBalance(balance)) != OK) {
+            printf("Couldn't get account balance!\n");
+            free(balance);
+            return status;
+        }
+
+        if (*balance != 100) {
+            printf("Housekeeping did not restore balance to 100!\n");
+            return ERROR;
+        }
+    }
+    else {
+        printf("Mutex is still locked, or some other error occurred!\n");
+        return status;
+    }
+
+    return status;
 }

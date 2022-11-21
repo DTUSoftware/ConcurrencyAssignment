@@ -15,4 +15,6 @@ int getAccountBalance(int *balance);
 
 int changeBalance(int amount);
 
+void *houseKeepingTask();
+
 #endif //BANK_LOGIC_H

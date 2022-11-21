@@ -16,6 +16,7 @@
 
 bool DEBUG = false;
 pthread_mutex_t *account_mutex = NULL;
+int *commit_balance = NULL;
 
 int main(int argc, char *argv[]) {
     int status = OK;
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[1], "-test") == 0)
         status = testMain(argc - 1, argv + 1);
     else {
-        printf("Usage: bank [-test <menu | test [all | withdrawal | deposit]>]\n");
+        printf("Usage: bank [-test <menu | test [all | withdrawal | deposit | deadlock]>]\n");
         status = ERROR;
     }
     return status;
@@ -56,12 +57,12 @@ int init() {
 
     // Create segment
     if (DEBUG) printf("Creating segment with key %d\n", SHARED_MEM_KEY);
-    if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t), shmflg)) == -1) {
+    if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int), shmflg)) == -1) {
         if (DEBUG) printf("Could not create segment - errno: %s (%d)\n", strerror(errno), errno);
         if (errno == EEXIST) {
             if (DEBUG) printf("Segment already created\n");
             // shmflg 0: try to get the created segment
-            if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t), 0)) == -1) {
+            if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int), 0)) == -1) {
                 if (DEBUG)
                     printf("Could not get already created shared mutex! - errno: %s (%d)\n", strerror(errno), errno);
                 return shmid;
@@ -85,6 +86,8 @@ int init() {
 
     account_mutex = shared_memory + sizeof(int);
 
+    commit_balance = shared_memory + sizeof(int) + sizeof(pthread_mutex_t);
+
     if (*initialized == -SHARED_MEM_INIT_KEY) {
         while (*initialized == -SHARED_MEM_INIT_KEY) {
             if (DEBUG) printf("Waiting for initialization to finish...\n");
@@ -92,7 +95,9 @@ int init() {
         }
     } else if (*initialized != SHARED_MEM_INIT_KEY) {
         *initialized = -SHARED_MEM_INIT_KEY;
-        if (DEBUG) printf("Initializing shared mutex...\n");
+        if (DEBUG) printf("Initializing shared mutex and balance...\n");
+
+        *commit_balance = 0;
 
         // https://www.ibm.com/docs/en/zos/2.3.0?topic=functions-pthread-mutex-init-initialize-mutex-object
         pthread_mutexattr_t attr;
@@ -114,6 +119,13 @@ int init() {
         *initialized = SHARED_MEM_INIT_KEY;
     } else {
         if (DEBUG) printf("Got shared mutex!\n");
+    }
+
+    // Start housekeeping in new thread
+    pthread_t thread;
+    if ((status = pthread_create(&thread, NULL, houseKeepingTask, NULL)) != OK) {
+        printf("Error creating thread for housekeeping task.\n");
+        return status;
     }
 
     return status;
@@ -375,19 +387,17 @@ int actionMenu(int action_type) {
 
     switch (action_type) {
         case WITHDRAWAL: {
-            if (pthread_create(&thread, NULL, withdraw, (void *) amount)) {
+            if ((status = pthread_create(&thread, NULL, withdraw, (void *) amount)) != OK) {
                 printf("Error creating thread.\n");
                 free(amount);
-                status = ERROR;
                 return status;
             }
             break;
         }
         case DEPOSIT: {
-            if (pthread_create(&thread, NULL, deposit, (void *) amount)) {
+            if ((status = pthread_create(&thread, NULL, deposit, (void *) amount)) != OK) {
                 printf("Error creating thread.\n");
                 free(amount);
-                status = ERROR;
                 return status;
             }
             break;
@@ -401,23 +411,25 @@ int actionMenu(int action_type) {
     if (DEBUG) printf("Waiting for thread to join...\n");
 
     void *pthread_status = NULL;
-    if (pthread_join(thread, &pthread_status)) {
+    if ((status = pthread_join(thread, &pthread_status)) != OK) {
         printf("Error joining thread.\n");
         free(amount);
-        return ERROR;
+        return status;
     }
     free(amount);
     if (pthread_status == NULL) {
         return ERROR;
     }
-    if (*((int *) pthread_status) != OK) {
+    status = *((int *) pthread_status);
+    if (status != OK) {
         free(pthread_status);
-        return ERROR;
+        return status;
     }
     free(pthread_status);
+    status = OK;
 
     menuDoneWait();
-    return OK;
+    return status;
 }
 
 int withdrawMenu() {
@@ -439,29 +451,30 @@ int accountMenu() {
 
     pthread_t thread;
 
-    if (pthread_create(&thread, NULL, balanceCheck, (void *) balance)) {
+    if ((status = pthread_create(&thread, NULL, balanceCheck, (void *) balance)) != OK) {
         printf("Error creating thread.\n");
         free(balance);
-        status = ERROR;
         return status;
     }
 
     if (DEBUG) printf("Waiting for thread to join...\n");
 
     void *pthread_status = NULL;
-    if (pthread_join(thread, &pthread_status)) {
+    if ((status = pthread_join(thread, &pthread_status)) != OK) {
         printf("Error joining thread.\n");
         free(balance);
-        return ERROR;
+        return status;
     }
     if (pthread_status == NULL) {
         return ERROR;
     }
-    if (*((int *) pthread_status) != OK) {
+    status = *((int *) pthread_status);
+    if (status != OK) {
         free(pthread_status);
-        return ERROR;
+        return status;
     }
     free(pthread_status);
+    status = OK;
 
     printf("Your current balance is %d$!\n", *balance);
 

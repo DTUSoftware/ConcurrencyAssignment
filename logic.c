@@ -7,6 +7,7 @@
 #include "test.h"
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 #include "utils.h"
 
 // Creates an account with a balance of 0
@@ -82,6 +83,9 @@ int getAccountBalance(int *balance) {
 int changeBalance(int amount) {
     int status = OK;
 
+    int *balance = malloc(sizeof(int));
+    assert(balance != NULL);
+
     // (Wait for mutex to be unlocked) and lock it, so two processes/threads don't change stuff at the same time
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
 
@@ -123,9 +127,6 @@ int changeBalance(int amount) {
     }
 
     // First we get the current balance
-    int *balance = malloc(sizeof(int));
-    assert(balance != NULL);
-
     if ((status = getAccountBalance(balance)) != OK) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
         printf("Couldn't get account balance! - %d\n", status);
@@ -135,6 +136,9 @@ int changeBalance(int amount) {
         }
         return status;
     }
+
+    // We store the account balance before changing it, in case we crash during the change
+    *commit_balance = *balance;
 
     // And then we change the balance
     if ((status = setAccountBalance(*balance + amount)) != OK) {
@@ -206,5 +210,91 @@ void *deposit(void *amount_ptr) {
     }
 
     *ret = changeBalance(*amount);
+    pthread_exit(ret);
+}
+
+// we don't wait for this task to join, so the return value is kind of a "memory leak", but also not, since it's alive
+// till the program dies.
+void *houseKeepingTask() {
+    int *ret = (int *) malloc(sizeof(int));
+    assert(ret != NULL);
+
+    while (true) {
+        // to check if the mutex is in a deadlock, we have to try to lock it
+        // https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-mutex-trylock-attempt-lock-mutex-object
+        if ((*ret = pthread_mutex_trylock(account_mutex)) == OK) {
+            if (DEBUG) printf("Mutex got locked during housekeeping, trying to unlock\n");
+            // if not locked, we locked it. Unlock it again
+            if ((*ret = pthread_mutex_unlock(account_mutex)) != OK) {
+                pthread_exit(ret);
+            }
+        }
+        else {
+            // We could not lock the mutex - check the error
+            switch (errno) {
+                case EAGAIN: {
+                    // maximum number of recursive locks for mutex has been exceeded
+                    // this should not happen, so we unlock it to try and save the program, and reset the balance.
+                    if ((*ret = setAccountBalance(*commit_balance)) != OK) {
+                        // we don't return, since we still want to unlock the mutex, but an error occurred
+                        printf("Error occurred while resetting balance from deadlocked mutex. - %d\n", *ret);
+                    }
+                    // reset commit balance
+                    *commit_balance = 0;
+
+                    if ((*ret = pthread_mutex_unlock(account_mutex)) != OK) {
+                        printf("Could not unlock mutex during housekeeping!\n");
+                        pthread_exit(ret);
+                    }
+                    break;
+                }
+                case EBUSY: {
+                    // mutex already locked
+                    // wait to see if it gets unlocked, try every 200 microseconds
+                    bool unlocked = false;
+                    for (int i = 0; i < (HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS*1000000)/200; i++) {
+                        // try lock
+                        if ((*ret = pthread_mutex_trylock(account_mutex)) == OK) {
+                            if (DEBUG) printf("Mutex got locked during housekeeping, trying to unlock\n");
+                            // it got unlocked and we locked it. Unlock it again
+                            if ((*ret = pthread_mutex_unlock(account_mutex)) != OK) {
+                                pthread_exit(ret);
+                            }
+                            unlocked = true;
+                            break;
+                        }
+                        usleep(200);
+                    }
+
+                    if (unlocked == false) {
+                        if (DEBUG) printf("Housekeeping found deadlock - trying to unlock!\n");
+                        
+                        // if still locked, we forcibly unlock it, since we assume that a deadlock happened
+                        if ((*ret = setAccountBalance(*commit_balance)) != OK) {
+                            // we don't return, since we still want to unlock the mutex, but an error occurred
+                            printf("Error occurred while resetting balance from deadlocked mutex. - %d\n", *ret);
+                        }
+                        // reset commit balance
+                        *commit_balance = 0;
+
+                        if ((*ret = pthread_mutex_unlock(account_mutex)) != OK) {
+                            printf("Could not unlock mutex during housekeeping!\n");
+                            pthread_exit(ret);
+                        }
+                    }
+                    break;
+                }
+                case EINVAL: {
+                    printf("Housekeeping failure - unknown mutex!\n");
+                    pthread_exit(ret);
+                }
+                default: {
+                    printf("Housekeeping failure - unknown error: %s (%d) - ret: %d\n", strerror(errno), errno, *ret);
+                    pthread_exit(ret);
+                }
+            }
+        }
+        sleep(HOUSEKEEPING_INTERVAL_SECONDS);
+    }
     pthread_exit(ret);
 }
