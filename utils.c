@@ -7,7 +7,6 @@
 #include <limits.h>
 #include <math.h>
 
-
 int convertStrToInt(char *string, int *integer) {
     // thanks stackoverflow https://stackoverflow.com/a/3068420
     if (strlen(string) > (floor(log10(abs(INT_MAX))) + 1)) {
@@ -36,7 +35,7 @@ int getCustomValue(int *value) {
     bufferptr[0] = buffer;
 
     // Read input from console
-    if (readinput(bufferptr, 1, stdin) != OK) {
+    if (readInput(bufferptr, 1, stdin) != OK) {
         // if we could not read, and not caused by memory error, try again
         free(buffer);
         return ERROR;
@@ -61,7 +60,7 @@ int clearScreen() {
 // Reads input from STDIN, while keeping a buffer, in order to
 // read "unlimited" input
 // IMPORTANT: From our Shell Assignment
-int readinput(char **bufferptr, int newlinestop, FILE *stream) {
+int readInput(char **bufferptr, int newlinestop, FILE *stream) {
     char *buffer = *bufferptr;
     // We tried using getline(), but it wasn't in MingW, and stumbled upon this implementation that
     // could not really be altered - so credit where credit is due.

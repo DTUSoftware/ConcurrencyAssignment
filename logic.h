@@ -17,4 +17,8 @@ int changeBalance(int amount);
 
 void *houseKeepingTask();
 
+int lockMutex();
+
+int unlockMutex();
+
 #endif //BANK_LOGIC_H

@@ -17,6 +17,7 @@
 bool DEBUG = false;
 pthread_mutex_t *account_mutex = NULL;
 int *commit_balance = NULL;
+unsigned long *current_mutex_id = NULL;
 
 int main(int argc, char *argv[]) {
     int status = OK;
@@ -57,12 +58,12 @@ int init() {
 
     // Create segment
     if (DEBUG) printf("Creating segment with key %d\n", SHARED_MEM_KEY);
-    if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int), shmflg)) == -1) {
+    if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int) + sizeof(int), shmflg)) == -1) {
         if (DEBUG) printf("Could not create segment - errno: %s (%d)\n", strerror(errno), errno);
         if (errno == EEXIST) {
             if (DEBUG) printf("Segment already created\n");
             // shmflg 0: try to get the created segment
-            if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int), 0)) == -1) {
+            if ((shmid = shmget(key, sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int) + sizeof(int), 0)) == -1) {
                 if (DEBUG)
                     printf("Could not get already created shared mutex! - errno: %s (%d)\n", strerror(errno), errno);
                 return shmid;
@@ -88,6 +89,8 @@ int init() {
 
     commit_balance = shared_memory + sizeof(int) + sizeof(pthread_mutex_t);
 
+    current_mutex_id = shared_memory + sizeof(int) + sizeof(pthread_mutex_t) + sizeof(int);
+
     if (*initialized == -SHARED_MEM_INIT_KEY) {
         while (*initialized == -SHARED_MEM_INIT_KEY) {
             if (DEBUG) printf("Waiting for initialization to finish...\n");
@@ -98,6 +101,7 @@ int init() {
         if (DEBUG) printf("Initializing shared mutex and balance...\n");
 
         *commit_balance = 0;
+        *current_mutex_id = 0;
 
         // https://www.ibm.com/docs/en/zos/2.3.0?topic=functions-pthread-mutex-init-initialize-mutex-object
         pthread_mutexattr_t attr;

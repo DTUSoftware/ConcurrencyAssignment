@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 #include "test.h"
 #include "main.h"
 #include "utils.h"
@@ -262,20 +263,20 @@ int deadlockTest() {
     *commit_balance = 100;
 
     printf("Locking mutex...\n");
-    if ((status = pthread_mutex_lock(account_mutex)) != OK) {
+    if ((status = lockMutex()) != OK) {
         printf("Failed to lock mutex!\n");
         return status;
     }
 
-    printf("Waiting for deadlock timeout... (%d seconds)\n", HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS+5);
-    sleep(HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS+5); // add a buffer of 5 seconds
+    printf("Waiting for deadlock timeout... (%d seconds)\n", HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS + 5);
+    sleep(HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS + 5); // add a buffer of 5 seconds
     printf("Done waiting - checking mutex status!\n");
 
     // check if it's still locked
     // https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-pthread-mutex-trylock-attempt-lock-mutex-object
     if ((status = pthread_mutex_trylock(account_mutex)) == OK) {
         // if not locked, we locked it. Unlock it again
-        if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
+        if ((status = unlockMutex()) != OK) {
             return status;
         }
 
@@ -293,9 +294,9 @@ int deadlockTest() {
             printf("Housekeeping did not restore balance to 100!\n");
             return ERROR;
         }
-    }
-    else {
-        printf("Mutex is still locked, or some other error occurred!\n");
+    } else {
+        printf("Mutex is still locked, or some other error occurred! - %s (%d) - ret: %d\n", strerror(errno), errno,
+               status);
         return status;
     }
 
