@@ -84,18 +84,28 @@ int changeBalance(int amount) {
 
     // (Wait for mutex to be unlocked) and lock it, so two processes/threads don't change stuff at the same time
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
-    printf("> Waiting to perform balance change...\n");
+
+    if (DEBUG) {
+        printf("> Waiting to perform balance change...\n");
+    }
+    else {
+        printf("> Please wait...\n");
+    }
+
     if ((status = pthread_mutex_lock(account_mutex)) != OK) {
         return status;
     }
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
-    printf("> Done waiting to perform balance change!\n");
+
+    if (DEBUG) {
+        printf("> Done waiting to perform balance change!\n");
+    }
+    else {
+        printf("> Transferring...\n");
+    }
 
     // Sleep so other processes can get "queued"
-    if (DEBUG) {
-        printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
-        fflush(stdout);
-    }
+    if (DEBUG) printf("[%lu] Sleeping to have other threads wait to see the effect...\n", pthread_self());
     // Get random sleep
     int randSleep;
     if ((status = randNum(1, SLEEP_MAX_MULTIPLICATION, &randSleep)) != OK) {
@@ -105,14 +115,11 @@ int changeBalance(int amount) {
         return status;
     }
     usleep(randSleep * BASE_SLEEP_MICRO_SECONDS);
-    if (DEBUG) {
-        printf("[%lu] Done sleeping!\n", pthread_self());
-    }
+    if (DEBUG) printf("[%lu] Done sleeping!\n", pthread_self());
 
     // Perform the balance change
     if (!TESTING) {
-        if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("> Changing balance by %d$...\n", amount);
+        if (DEBUG) printf("[%lu] > Changing balance by %d$...\n", pthread_self(), amount);
     }
 
     // First we get the current balance
@@ -121,7 +128,7 @@ int changeBalance(int amount) {
 
     if ((status = getAccountBalance(balance)) != OK) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("Couldn't get account balance!\n");
+        printf("Couldn't get account balance! - %d\n", status);
         free(balance);
         if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
             return status;
@@ -146,7 +153,7 @@ int changeBalance(int amount) {
     }
     if (DEBUG) { printf("[%lu] ", pthread_self()); }
     if (!TESTING) {
-        printf("> Done transferring!\n");
+        printf("> Successfully transferred %d$!\n", amount);
     } else {
         printf("> Released lock.\n");
     }
