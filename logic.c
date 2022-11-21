@@ -132,7 +132,7 @@ int changeBalance(int amount) {
     // And then we change the balance
     if ((status = setAccountBalance(*balance + amount)) != OK) {
         if (DEBUG) { printf("[%lu] ", pthread_self()); }
-        printf("Couldn't set balance!\n");
+        printf("Couldn't set balance! - %d\n", status);
         free(balance);
         if ((status = pthread_mutex_unlock(account_mutex)) != OK) {
             return status;

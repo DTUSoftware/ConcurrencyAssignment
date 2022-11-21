@@ -29,8 +29,6 @@ int depositMenu();
 
 int accountMenu();
 
-int transferMenu();
-
 extern bool DEBUG;
 
 extern pthread_mutex_t *account_mutex;
@@ -43,8 +41,7 @@ enum STATUS {
 
 enum ACTION_TYPE {
     WITHDRAWAL,
-    DEPOSIT,
-    TRANSFER
+    DEPOSIT
 };
 
 #endif //BANK_MAIN_H

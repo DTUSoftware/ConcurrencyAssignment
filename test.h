@@ -20,8 +20,6 @@ int withdrawalTest();
 
 int depositTest();
 
-int transferTest();
-
 int runTest(int test_type);
 
 #endif //BANK_TEST_H

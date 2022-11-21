@@ -29,13 +29,8 @@ int testMain(int argc, char *argv[]) {
             printf("Deposit test completed successfully!\n");
         else
             printf("Deposit test failed!\n");
-    else if (!strcmp(argv[1], "transfer"))
-        if ((status = transferTest()) == OK)
-            printf("Transfer test completed successfully!\n");
-        else
-            printf("Transfer test failed!\n");
     else {
-        printf("Usage: bank [-test [menu | all | withdrawal | deposit | transfer]]\n");
+        printf("Usage: bank [-test [menu | all | withdrawal | deposit]]\n");
         status = ERROR;
     }
     return status;
@@ -54,8 +49,7 @@ int testMenu() {
     options[1] = "Run All Tests";
     options[2] = "Withdrawal Test";
     options[3] = "Deposit Test";
-    options[4] = "Transfer Test";
-    options[5] = NULL;
+    options[4] = NULL;
 
     if ((status = menu(title, NULL, optionText, options, 1, option)) != OK) {
         free(option);
@@ -86,13 +80,6 @@ int testMenu() {
                 printf("Deposit test completed successfully!\n");
             else
                 printf("Deposit test failed!\n");
-            break;
-        }
-        case 4: {
-            if ((status = transferTest()) == OK)
-                printf("Transfer test completed successfully!\n");
-            else
-                printf("Transfer test failed!\n");
             break;
         }
         default: {
@@ -128,7 +115,7 @@ int prepareBeforeTest() {
 }
 
 int allTests() {
-    if (withdrawalTest() == OK && depositTest() == OK && transferTest() == OK) {
+    if (withdrawalTest() == OK && depositTest() == OK) {
         return OK;
     }
     return ERROR;
@@ -166,8 +153,7 @@ int runTest(int test_type) {
                 amounts[k] = j * randInt;
                 // Adjust our account balance
                 switch (test_type) {
-                    case WITHDRAWAL:
-                    case TRANSFER: {
+                    case WITHDRAWAL: {
                         account_balance = account_balance - amounts[k];
                         if (pthread_create(&threads[k], NULL, withdraw, (void *) &amounts[k])) {
                             printf("error creating thread.");
@@ -245,9 +231,4 @@ int withdrawalTest() {
 int depositTest() {
     printf("Running deposit tests...\n");
     return runTest(DEPOSIT);
-}
-
-int transferTest() {
-    printf("Running transfer tests...\n");
-    return runTest(TRANSFER);
 }

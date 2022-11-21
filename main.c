@@ -10,16 +10,11 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include    <stdio.h>
-#include    <stdlib.h>
-#include    <unistd.h>
-#include    <fcntl.h>
 #include <errno.h>
-#include    <pthread.h>
 #include "utils.h"
 #include "logic.h"
 
-bool DEBUG = true;
+bool DEBUG = false;
 pthread_mutex_t *account_mutex = NULL;
 
 int main(int argc, char *argv[]) {
@@ -36,7 +31,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[1], "-test") == 0)
         status = testMain(argc - 1, argv + 1);
     else {
-        printf("Usage: bank [-test <menu | test [all | withdrawal | deposit | transfer]>]\n");
+        printf("Usage: bank [-test <menu | test [all | withdrawal | deposit]>]\n");
         status = ERROR;
     }
     return status;
@@ -222,8 +217,7 @@ int bankMenu() {
         options[1] = "Withdraw";
         options[2] = "Deposit";
         options[3] = "Check account";
-        options[4] = "Transfer";
-        options[5] = NULL;
+        options[4] = NULL;
 
         if ((status = menu(title, description, NULL, options, 1, option)) != OK) {
             free(option);
@@ -249,10 +243,6 @@ int bankMenu() {
             }
             case 3: {
                 status = accountMenu();
-                break;
-            }
-            case 4: {
-                status = transferMenu();
                 break;
             }
                 // hidden test menu
@@ -304,7 +294,7 @@ int menuDoneWait() {
 int actionMenu(int action_type) {
     int status = OK;
 
-    if (action_type != WITHDRAWAL && action_type != DEPOSIT && action_type != TRANSFER) {
+    if (action_type != WITHDRAWAL && action_type != DEPOSIT) {
         status = ERROR;
         return status;
     }
@@ -312,11 +302,8 @@ int actionMenu(int action_type) {
     int *option = malloc(sizeof(int));
     assert(option != NULL);
 
-    char *title = (action_type == WITHDRAWAL) ? "Withdrawal Menu" : ((action_type == DEPOSIT) ? "Deposit Menu"
-                                                                                              : "Transfer Menu");
-    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount" : ((action_type == DEPOSIT)
-                                                                                 ? "Choose Deposit Amount"
-                                                                                 : "Choose Transfer Amount");
+    char *title = (action_type == WITHDRAWAL) ? "Withdrawal Menu" : "Deposit Menu";
+    char *optionText = (action_type == WITHDRAWAL) ? "Choose Withdraw Amount" : "Choose Deposit Amount";
     char *options[8];
     options[0] = "50kr,-";
     options[1] = "100kr,-";
@@ -384,7 +371,6 @@ int actionMenu(int action_type) {
     pthread_t thread;
 
     switch (action_type) {
-        case TRANSFER:
         case WITHDRAWAL: {
             if (pthread_create(&thread, NULL, withdraw, (void *) amount)) {
                 printf("Error creating thread.\n");
@@ -437,10 +423,6 @@ int withdrawMenu() {
 
 int depositMenu() {
     return actionMenu(DEPOSIT);
-}
-
-int transferMenu() {
-    return actionMenu(TRANSFER);
 }
 
 int accountMenu() {
