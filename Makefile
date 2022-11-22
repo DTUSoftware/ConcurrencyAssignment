@@ -38,8 +38,8 @@ withdrawalTest: $(TARGET)
 depositTest: $(TARGET)
 	./$(TARGET) -test deposit
 
-transferTest: $(TARGET)
-	./$(TARGET) -test transfer
+deadlockTest: $(TARGET)
+	./$(TARGET) -test deadlock
 
 pretty: 
 	indent *.c *.h -kr
