@@ -1,26 +1,45 @@
 CC = gcc
-CCOPTS = -c -g -Wall
-LINKOPTS = -g -lrt 
+CCOPTS = -c -O2 -g -Wall -Wextra
+LINKOPTS = -O2 -g -Wall -Wextra
 
-EXEC=bank
-OBJECTS=main.c main.h
+TARGET = bank
+SRCS = main.c logic.c utils.c test.c
+OBJECTS = $(SRCS:.c=.o)
 
-all: $(EXEC)
+LIBS = -pthread
 
-$(EXEC): $(OBJECTS)
-	$(CC) $(LINKOPTS) -c -O2 $@ $^
+all: $(TARGET)
 
-%.o:%.c
-	$(CC) $(CCOPTS) -c -O2 $@ $^
+$(TARGET): $(OBJECTS)
+	$(CC) $(LINKOPTS) $(LIBS) -o $@ $^
+
+%.o: %.c %.h
+	$(CC) $(CCOPTS) -o $@ $<
 
 clean:
-	- $(RM) $(EXEC)
+	- $(RM) $(TARGET)
+	- $(RM) $(TARGET).exe
 	- $(RM) $(OBJECTS)
 	- $(RM) *~
+	- $(RM) *.h.gch
+	- $(RM) *.d
 	- $(RM) core.*
+	- $(RM) account_db
 
-run: $(EXEC)
-	$(EXEC)
+run: $(TARGET)
+	./$(TARGET)
+
+test: $(TARGET)
+	./$(TARGET) -test all
+
+withdrawalTest: $(TARGET)
+	./$(TARGET) -test withdrawal
+
+depositTest: $(TARGET)
+	./$(TARGET) -test deposit
+
+deadlockTest: $(TARGET)
+	./$(TARGET) -test deadlock
 
 pretty: 
 	indent *.c *.h -kr
