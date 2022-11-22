@@ -7,7 +7,7 @@ int clearScreen();
 
 int getCustomValue(int *value);
 
-int readinput(char **bufferptr, int newlinestop, FILE *stream);
+int readInput(char **bufferptr, int newlinestop, FILE *stream);
 
 int menuDoneWait();
 

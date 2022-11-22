@@ -20,7 +20,7 @@ int withdrawalTest();
 
 int depositTest();
 
-int transferTest();
+int deadlockTest();
 
 int runTest(int test_type);
 

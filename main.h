@@ -11,6 +11,9 @@
 #define SLEEP_MAX_MULTIPLICATION 5
 #define SHARED_MEM_KEY 6969
 #define SHARED_MEM_INIT_KEY 42069
+#define HOUSEKEEPING_INTERVAL_SECONDS 1
+#define HOUSEKEEPING_WAIT_FOR_UNLOCK_SECONDS 15
+#define HOUSEKEEPING_CHECKS_PER_SECOND 200
 #define ACCOUNT_DB "./account_db"
 
 int main(int argc, char *argv[]);
@@ -29,11 +32,11 @@ int depositMenu();
 
 int accountMenu();
 
-int transferMenu();
-
 extern bool DEBUG;
 
 extern pthread_mutex_t *account_mutex;
+extern int *commit_balance;
+extern unsigned long *current_mutex_id;
 
 enum STATUS {
     OK = 0,
@@ -43,8 +46,7 @@ enum STATUS {
 
 enum ACTION_TYPE {
     WITHDRAWAL,
-    DEPOSIT,
-    TRANSFER
+    DEPOSIT
 };
 
 #endif //BANK_MAIN_H
